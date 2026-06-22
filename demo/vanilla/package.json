@@ -1,0 +1,15 @@
+{
+  "name": "pretext-editor-vanilla-demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node build.js && npx serve ."
+  },
+  "dependencies": {
+    "pretext-editor": "file:../.."
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "serve": "^14.0.0"
+  }
+}
