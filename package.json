@@ -1,0 +1,33 @@
+{
+  "name": "pretext-editor",
+  "version": "0.4.1",
+  "private": false,
+  "description": "High-performance Canvas-virtualized text editor for large documents based @chenglou/pretext",
+  "license": "MIT",
+  "keywords": [
+    "pretext",
+    "code-editor",
+    "syntax",
+    "highlighting",
+    "vscode-like"
+  ],
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0",
+    "react-dom": ">=19.0.0"
+  },
+  "dependencies": {
+    "@chenglou/pretext": "^0.0.8",
+    "shiki": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.9.3"
+  }
+}

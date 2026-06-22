@@ -1,0 +1,6 @@
+export { PretextEditor } from './react/PretextEditor'
+export type { PretextEditorProps, PretextEditorHandle, IEditorBinding, ContextMenuItem, ContextMenuBuiltins } from './react/PretextEditor'
+export { fromString, toString, insert, deleteBackward, deleteForward, moveCursor, getSelectedText, deleteSelectedText, isCollapsed, normalizeSelection } from './core/document'
+export type { Doc, Cursor, Selection } from './core/document'
+export { extToLang } from './core/tokenizer'
+export type { TokenSpan, TokenizedLine } from './core/renderer'
