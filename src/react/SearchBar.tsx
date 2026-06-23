@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import type { SearchState, SearchActions } from '../core/search'
 import '../icons/icons.css'
+import './search-bar.css'
 
 interface SearchBarProps {
   state: SearchState
   actions: SearchActions
-  /** When true, Replace and Replace All buttons are disabled */
   readOnly?: boolean
 }
 
@@ -15,38 +15,21 @@ function IconBtn({
   active,
   disabled,
   onClick,
-  width,
+  narrow,
 }: {
   children: React.ReactNode
   title: string
   active?: boolean
   disabled?: boolean
   onClick: () => void
-  width?: number
+  narrow?: boolean
 }) {
-  const [hovered, setHovered] = useState(false)
   return (
     <button
       title={title}
       onClick={onClick}
       disabled={disabled}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: width ?? 26,
-        height: 26,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        border: 'none',
-        borderRadius: 4,
-        background: active ? '#0e639c' : hovered && !disabled ? '#37373d' : 'transparent',
-        color: disabled ? '#555' : '#cccccc',
-        cursor: disabled ? 'default' : 'pointer',
-        padding: 0,
-        flexShrink: 0,
-        outline: 'none',
-      }}
+      className={`pteic-btn${narrow ? ' pteic-btn--narrow' : ''}${active ? ' pteic-btn--active' : ''}`}
     >
       {children}
     </button>
@@ -106,7 +89,6 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
 
   const hasError = !!state.regexError
   const noMatches = !!state.query && !hasError && state.matchCount === 0
-  const inputBorderColor = hasError ? '#f48771' : '#555'
 
   const countText = hasError
     ? ''
@@ -114,64 +96,19 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
       ? (state.query ? 'No results' : '')
       : `${state.currentIndex + 1} of ${state.matchCount > 999 ? '999+' : state.matchCount}`
 
-  const countColor = hasError || noMatches ? '#f48771' : '#d4d4d4'
-
-  // 3 toggle buttons × 26px + 2px gaps × 2 + 4px right padding
-  const togglesWidth = 3 * 26 + 2 * 2 + 4
-
-  const inputStyle: React.CSSProperties = {
-    width: 240,
-    background: noMatches ? 'rgba(228,86,73,0.18)' : '#3c3c3c',
-    border: `1px solid #555`,
-    borderRadius: 3,
-    color: '#d4d4d4',
-    fontSize: 14,
-    paddingTop: 2,
-    paddingBottom: 2,
-    paddingLeft: 8,
-    paddingRight: 8,
-    outline: 'none',
-    fontFamily: 'inherit',
-    boxSizing: 'border-box',
-    height: 30,
-  }
-
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 10,
-        right: 18,
-        zIndex: 100,
-        background: '#252526',
-        border: '1px solid #454545',
-        borderRadius: 6,
-        boxShadow: '0 4px 14px rgba(0,0,0,0.6)',
-        padding: 2,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-        fontFamily: 'system-ui, -apple-system, sans-serif',
-        userSelect: 'none',
-      }}
-    >
+    <div className="pteic-sb">
       {/* ── Find row ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-
-        {/* Toggle replace chevron — rotates -90deg when collapsed, 0deg when expanded */}
+      <div className="pteic-sb-row">
         <IconBtn
           title={state.showReplace ? 'Collapse Replace' : 'Expand Replace'}
           onClick={actions.toggleReplace}
-          width={15}
+          narrow
         >
-          <span className="pteic pteic-chevron-down" style={{
-            transform: state.showReplace ? 'none' : 'rotate(-90deg)',
-            transition: 'transform 0.12s',
-          }} />
+          <span className={`pteic pteic-chevron-down${state.showReplace ? '' : ' pteic-chevron-down--collapsed'}`} />
         </IconBtn>
 
-        {/* Find input + embedded toggles */}
-        <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div className="pteic-sb-input-wrap">
           <input
             ref={findRef}
             value={state.query}
@@ -179,17 +116,9 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
             onKeyDown={handleFindKeyDown}
             placeholder="Find"
             title={state.regexError ?? undefined}
-            style={{ ...inputStyle, paddingRight: togglesWidth, borderColor: inputBorderColor }}
+            className={`pteic-sb-input pteic-sb-find-input${noMatches ? ' pteic-sb-input--no-matches' : ''}${hasError ? ' pteic-sb-input--error' : ''}`}
           />
-          <div style={{
-            position: 'absolute',
-            right: 3,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            display: 'flex',
-            gap: 2,
-            alignItems: 'center',
-          }}>
+          <div className="pteic-sb-toggles">
             <IconBtn title="Match Case (Alt+C)" active={state.caseSensitive}
               onClick={() => actions.setCaseSensitive(!state.caseSensitive)}>
               <span className="pteic pteic-case-sensitive" />
@@ -205,20 +134,11 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
           </div>
         </div>
 
-        {/* Count */}
-        <span style={{
-          fontSize: 13,
-          color: countColor,
-          minWidth: 74,
-          textAlign: 'center',
-          flexShrink: 0,
-          whiteSpace: 'nowrap',
-        }}>
+        <span className={`pteic-sb-count${hasError || noMatches ? ' pteic-sb-count--error' : ''}`}>
           {countText}
         </span>
 
-        {/* Prev / Next / Close */}
-        <div style={{ display: 'flex', gap: 2 }}>
+        <div className="pteic-sb-btns">
           <IconBtn title="Previous Match (Shift+Enter)" disabled={state.matchCount === 0} onClick={actions.prev}>
             <span className="pteic pteic-arrow-up" />
           </IconBtn>
@@ -233,12 +153,10 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
 
       {/* ── Replace row ── */}
       {state.showReplace && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          {/* spacer aligns with find chevron */}
-          <div style={{ width: 15, flexShrink: 0 }} />
+        <div className="pteic-sb-row">
+          <div className="pteic-sb-spacer" />
 
-          {/* Replace input + Preserve Case toggle */}
-          <div style={{ position: 'relative', flexShrink: 0 }}>
+          <div className="pteic-sb-input-wrap">
             <input
               ref={replaceRef}
               value={state.replaceQuery}
@@ -246,14 +164,9 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               onKeyDown={handleReplaceKeyDown}
               placeholder="Replace"
               disabled={readOnly}
-              style={{ ...inputStyle, paddingRight: 30, borderColor: '#555', opacity: readOnly ? 0.4 : 1 }}
+              className={`pteic-sb-input pteic-sb-replace-input${noMatches ? ' pteic-sb-input--no-matches' : ''}${readOnly ? ' pteic-sb-input--readonly' : ''}`}
             />
-            <div style={{
-              position: 'absolute',
-              right: 3,
-              top: '50%',
-              transform: 'translateY(-50%)',
-            }}>
+            <div className="pteic-sb-overlay">
               <IconBtn
                 title="Preserve Case (AB)"
                 active={state.preserveCase}
@@ -265,8 +178,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
             </div>
           </div>
 
-          {/* Replace / Replace All */}
-          <div style={{ display: 'flex', gap: 2 }}>
+          <div className="pteic-sb-btns">
             <IconBtn
               title="Replace (Enter)"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
@@ -287,17 +199,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
 
       {/* ── Regex error ── */}
       {state.regexError && (
-        <div style={{
-          fontSize: 12,
-          color: '#f48771',
-          paddingLeft: 20,
-          maxWidth: 420,
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
-          {state.regexError}
-        </div>
+        <div className="pteic-sb-error">{state.regexError}</div>
       )}
     </div>
   )
