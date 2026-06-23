@@ -1034,6 +1034,7 @@ export class EditorController {
               this.onChange(str)
               this.notifyAndRepaint()
               this.scrollCursorIntoView()
+              if (this.searchState.isOpen) this.scheduleSearch()
             }
           } else {
             const prev = this.undoStack.pop()
@@ -1047,6 +1048,7 @@ export class EditorController {
               this.onChange(str)
               this.notifyAndRepaint()
               this.scrollCursorIntoView()
+              if (this.searchState.isOpen) this.scheduleSearch()
             }
           }
           return
@@ -1064,6 +1066,7 @@ export class EditorController {
             this.onChange(str)
             this.notifyAndRepaint()
             this.scrollCursorIntoView()
+            if (this.searchState.isOpen) this.scheduleSearch()
           }
           return
         }
