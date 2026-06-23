@@ -1,6 +1,6 @@
 import { tokenize } from '../core/tokenizer'
 import type { TokenizedLine } from '../core/renderer'
-import { searchLines, INITIAL_SEARCH_STATE, type SearchState, type SearchMatch } from '../core/search'
+import { buildSearchRegex, buildLineOffsets, fastOffsetToCursor, INITIAL_SEARCH_STATE, type SearchState, type SearchMatch } from '../core/search'
 import {
   fromString,
   toString,
@@ -175,6 +175,7 @@ export class EditorController {
   // Search state (public so React wrapper can read via getState())
   searchState: SearchState = { ...INITIAL_SEARCH_STATE }
   private searchMatches: SearchMatch[] = []
+  private searchGeneration = 0
 
   // Internal state
   private undoStack: Snapshot[] = []
@@ -347,11 +348,11 @@ export class EditorController {
       : null
     const q = query ?? sel ?? this.searchState.query
     this.searchState = { ...this.searchState, isOpen: true, query: q }
-    this.recomputeSearch()
-    this.notifyAndRepaint()
+    this.scheduleSearch()
   }
 
   closeSearch(): void {
+    this.searchGeneration++  // cancel in-progress async search
     this.searchState = { ...this.searchState, isOpen: false }
     this.searchMatches = []
     this.notifyAndRepaint()
@@ -360,8 +361,7 @@ export class EditorController {
 
   setSearchQuery(q: string): void {
     this.searchState = { ...this.searchState, query: q }
-    this.recomputeSearch()
-    this.notifyAndRepaint()
+    this.scheduleSearch()
   }
 
   searchNext(): void {
@@ -382,20 +382,17 @@ export class EditorController {
 
   setSearchCaseSensitive(v: boolean): void {
     this.searchState = { ...this.searchState, caseSensitive: v }
-    this.recomputeSearch()
-    this.notifyAndRepaint()
+    this.scheduleSearch()
   }
 
   setSearchWholeWord(v: boolean): void {
     this.searchState = { ...this.searchState, wholeWord: v }
-    this.recomputeSearch()
-    this.notifyAndRepaint()
+    this.scheduleSearch()
   }
 
   setSearchUseRegex(v: boolean): void {
     this.searchState = { ...this.searchState, useRegex: v }
-    this.recomputeSearch()
-    this.notifyAndRepaint()
+    this.scheduleSearch()
   }
 
   toggleReplace(): void {
@@ -430,26 +427,15 @@ export class EditorController {
     const sel = { anchor: match.anchor, head: match.head }
     const afterDelete = deleteSelectedText(this.doc, sel)
     this.commitUpdate(insert(afterDelete, replacement), null)
-    this.recomputeSearch()
-    this.notifyAndRepaint()
+    this.scheduleSearch()
   }
 
   replaceAll(): void {
     const { query, replaceQuery, caseSensitive, wholeWord, useRegex, regexError } = this.searchState
     if (!query || this.searchMatches.length === 0 || regexError) return
 
-    let pattern: RegExp
-    try {
-      const flags = caseSensitive ? 'g' : 'gi'
-      if (useRegex) {
-        const src = wholeWord ? `(?<![\\w])(?:${query})(?![\\w])` : query
-        pattern = new RegExp(src, flags)
-      } else {
-        const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-        const src = wholeWord ? `\\b${escaped}\\b` : escaped
-        pattern = new RegExp(src, flags)
-      }
-    } catch { return }
+    const { pattern } = buildSearchRegex(query, caseSensitive, wholeWord, useRegex)
+    if (!pattern) return
 
     const oldText = toString(this.doc)
     const newText = oldText.replace(pattern, replaceQuery)
@@ -463,19 +449,68 @@ export class EditorController {
     this.extraCursors = []
     this.lastExternalValue = newText
     this.onChange(newText)
-    this.recomputeSearch()
-    this.notifyAndRepaint()
+    this.scheduleSearch()
   }
 
-  private recomputeSearch(): void {
+  private scheduleSearch(): void {
+    const generation = ++this.searchGeneration
+    // Immediately clear stale results so UI doesn't show outdated count
+    this.searchMatches = []
+    this.searchState = { ...this.searchState, matchCount: 0, currentIndex: -1, regexError: null }
+    this.notifyAndRepaint()
+    void this.runSearchAsync(generation)
+  }
+
+  private async runSearchAsync(generation: number): Promise<void> {
     const { query, caseSensitive, wholeWord, useRegex } = this.searchState
-    const { matches, regexError } = searchLines(this.doc.lines, query, caseSensitive, wholeWord, useRegex)
+    if (!query) return
+
+    const { pattern, regexError } = buildSearchRegex(query, caseSensitive, wholeWord, useRegex)
+    if (regexError) {
+      if (generation === this.searchGeneration) {
+        this.searchState = { ...this.searchState, regexError }
+        this.notifyAndRepaint()
+      }
+      return
+    }
+    if (!pattern) return
+
+    const lines = this.doc.lines
+    const text = lines.join('\n')
+    const lineOffsets = buildLineOffsets(lines)
+    const matches: SearchMatch[] = []
+    const BATCH = 1000
+
+    while (true) {
+      const m = pattern.exec(text)
+      if (!m) break
+      if (m[0].length === 0) { pattern.lastIndex++; continue }
+      matches.push({
+        anchor: fastOffsetToCursor(lineOffsets, lines, m.index),
+        head: fastOffsetToCursor(lineOffsets, lines, m.index + m[0].length),
+      })
+
+      if (matches.length % BATCH === 0) {
+        // Show partial results, then yield to the event loop
+        if (generation !== this.searchGeneration) return
+        this.searchMatches = matches.slice()
+        this.searchState = { ...this.searchState, matchCount: matches.length, currentIndex: -1, regexError: null }
+        this.notifyAndRepaint()
+        await new Promise<void>(r => setTimeout(r, 0))
+        if (generation !== this.searchGeneration) return
+      }
+    }
+
+    if (generation !== this.searchGeneration) return
+
+    // Final: pin currentIndex and scroll to first match
     this.searchMatches = matches
     const count = matches.length
-    const cur = count === 0 ? -1 : Math.min(this.searchState.currentIndex, count - 1)
-    const clamped = cur < 0 && count > 0 ? 0 : cur
-    this.searchState = { ...this.searchState, matchCount: count, currentIndex: clamped, regexError }
+    const prev = this.searchState.currentIndex
+    const clamped = count === 0 ? -1 : prev >= 0 ? Math.min(prev, count - 1) : 0
+    this.searchState = { ...this.searchState, matchCount: count, currentIndex: clamped, regexError: null }
     if (clamped >= 0) this.selectAndScrollToMatch(clamped)
+    this.notifyAndRepaint()
   }
 
   private selectAndScrollToMatch(idx: number): void {
