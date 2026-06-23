@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SearchState, SearchActions } from '../core/search'
+import { ReplaceIcon, ReplaceAllIcon } from './icons'
 
 interface SearchBarProps {
   state: SearchState
@@ -242,17 +243,15 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               title="Replace (Enter)"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replace}
-              width={26}
             >
-              <span style={{ fontSize: 15 }}>⟳</span>
+              <ReplaceIcon />
             </IconBtn>
             <IconBtn
               title="Replace All"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replaceAll}
-              width={46}
             >
-              <span style={{ fontSize: 12 }}>⟳ All</span>
+              <ReplaceAllIcon />
             </IconBtn>
           </div>
         </div>
