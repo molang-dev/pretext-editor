@@ -12,7 +12,25 @@ interface SearchBarProps {
   readOnly?: boolean
 }
 
-const svgStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', pointerEvents: 'none' }
+function Icon({ url, style }: { url: string; style?: React.CSSProperties }) {
+  return <span style={{
+    display: 'inline-block',
+    width: 16,
+    height: 16,
+    flexShrink: 0,
+    pointerEvents: 'none',
+    backgroundColor: 'currentColor',
+    WebkitMaskImage: `url(${url})`,
+    WebkitMaskRepeat: 'no-repeat',
+    WebkitMaskPosition: 'center',
+    WebkitMaskSize: 'contain',
+    maskImage: `url(${url})`,
+    maskRepeat: 'no-repeat',
+    maskPosition: 'center',
+    maskSize: 'contain',
+    ...style,
+  } as React.CSSProperties} />
+}
 
 function IconBtn({
   children,
@@ -56,10 +74,6 @@ function IconBtn({
       {children}
     </button>
   )
-}
-
-function Svg({ html, style }: { html: string; style?: React.CSSProperties }) {
-  return <span dangerouslySetInnerHTML={{ __html: html }} style={{ ...svgStyle, ...style }} />
 }
 
 export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
@@ -173,7 +187,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
           onClick={actions.toggleReplace}
           width={15}
         >
-          <Svg html={chevronDownSvg} style={{
+          <Icon url={chevronDownSvg} style={{
             transform: state.showReplace ? 'none' : 'rotate(-90deg)',
             transition: 'transform 0.12s',
           }} />
@@ -201,15 +215,15 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
           }}>
             <IconBtn title="Match Case (Alt+C)" active={state.caseSensitive}
               onClick={() => actions.setCaseSensitive(!state.caseSensitive)}>
-              <Svg html={caseSensitiveSvg} />
+              <Icon url={caseSensitiveSvg} />
             </IconBtn>
             <IconBtn title="Match Whole Word (Alt+W)" active={state.wholeWord}
               onClick={() => actions.setWholeWord(!state.wholeWord)}>
-              <Svg html={wholeWordSvg} />
+              <Icon url={wholeWordSvg} />
             </IconBtn>
             <IconBtn title="Use Regular Expression (Alt+R)" active={state.useRegex}
               onClick={() => actions.setUseRegex(!state.useRegex)}>
-              <Svg html={regexSvg} />
+              <Icon url={regexSvg} />
             </IconBtn>
           </div>
         </div>
@@ -229,13 +243,13 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
         {/* Prev / Next / Close */}
         <div style={{ display: 'flex', gap: 2 }}>
           <IconBtn title="Previous Match (Shift+Enter)" disabled={state.matchCount === 0} onClick={actions.prev}>
-            <Svg html={arrowUpSvg} />
+            <Icon url={arrowUpSvg} />
           </IconBtn>
           <IconBtn title="Next Match (Enter)" disabled={state.matchCount === 0} onClick={actions.next}>
-            <Svg html={arrowDownSvg} />
+            <Icon url={arrowDownSvg} />
           </IconBtn>
           <IconBtn title="Close (Escape)" onClick={actions.close}>
-            <Svg html={closeSvg} />
+            <Icon url={closeSvg} />
           </IconBtn>
         </div>
       </div>
@@ -269,7 +283,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
                 disabled={readOnly || state.useRegex}
                 onClick={() => actions.setPreserveCase(!state.preserveCase)}
               >
-                <Svg html={preserveCaseSvg} />
+                <Icon url={preserveCaseSvg} />
               </IconBtn>
             </div>
           </div>
@@ -281,14 +295,14 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replace}
             >
-              <Svg html={replaceSvg} />
+              <Icon url={replaceSvg} />
             </IconBtn>
             <IconBtn
               title="Replace All (Ctrl+Alt+Enter)"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replaceAll}
             >
-              <Svg html={replaceAllSvg} />
+              <Icon url={replaceAllSvg} />
             </IconBtn>
           </div>
         </div>

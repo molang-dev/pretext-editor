@@ -1,22 +1,4 @@
 import { defineConfig } from 'tsup'
-import { readFileSync } from 'fs'
-import { resolve } from 'path'
-import type { Plugin } from 'esbuild'
-
-// Handles `import x from '*.svg?raw'` — esbuild doesn't understand the ?raw suffix natively.
-const svgRawPlugin: Plugin = {
-  name: 'svg-raw',
-  setup(build) {
-    build.onResolve({ filter: /\.svg\?raw$/ }, args => ({
-      path: resolve(args.resolveDir, args.path.replace(/\?raw$/, '')),
-      namespace: 'svg-raw',
-    }))
-    build.onLoad({ filter: /.*/, namespace: 'svg-raw' }, args => ({
-      contents: `export default ${JSON.stringify(readFileSync(args.path, 'utf-8'))}`,
-      loader: 'js',
-    }))
-  },
-}
 
 export default defineConfig({
   entry: {
@@ -29,7 +11,9 @@ export default defineConfig({
   dts: true,
   splitting: false,
   clean: true,
-  esbuildPlugins: [svgRawPlugin],
+  esbuildOptions(options) {
+    options.loader = { ...options.loader, '.svg': 'dataurl' }
+  },
   external: [
     'react',
     'react-dom',
