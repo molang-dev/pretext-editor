@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SearchState, SearchActions } from '../core/search'
-import { ReplaceIcon, ReplaceAllIcon } from './icons'
+import {
+  arrowUpSvg, arrowDownSvg, caseSensitiveSvg, chevronDownSvg,
+  closeSvg, wholeWordSvg, regexSvg, replaceSvg, replaceAllSvg,
+} from '../icons'
 
 interface SearchBarProps {
   state: SearchState
@@ -8,6 +11,8 @@ interface SearchBarProps {
   /** When true, Replace and Replace All buttons are disabled */
   readOnly?: boolean
 }
+
+const svgStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', pointerEvents: 'none' }
 
 function IconBtn({
   children,
@@ -43,18 +48,18 @@ function IconBtn({
         background: active ? '#0e639c' : hovered && !disabled ? '#37373d' : 'transparent',
         color: disabled ? '#555' : '#cccccc',
         cursor: disabled ? 'default' : 'pointer',
-        fontSize: 13,
-        fontFamily: 'system-ui, sans-serif',
         padding: 0,
         flexShrink: 0,
-        lineHeight: 1,
         outline: 'none',
-        whiteSpace: 'nowrap',
       }}
     >
       {children}
     </button>
   )
+}
+
+function Svg({ html, style }: { html: string; style?: React.CSSProperties }) {
+  return <span dangerouslySetInnerHTML={{ __html: html }} style={{ ...svgStyle, ...style }} />
 }
 
 export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
@@ -147,18 +152,16 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
       {/* ── Find row ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
 
-        {/* Toggle replace chevron */}
+        {/* Toggle replace chevron — rotates -90deg when collapsed, 0deg when expanded */}
         <IconBtn
           title={state.showReplace ? 'Collapse Replace' : 'Expand Replace'}
           onClick={actions.toggleReplace}
           width={15}
         >
-          <span style={{
-            display: 'inline-block',
-            fontSize: 12,
-            transform: state.showReplace ? 'rotate(90deg)' : 'none',
+          <Svg html={chevronDownSvg} style={{
+            transform: state.showReplace ? 'none' : 'rotate(-90deg)',
             transition: 'transform 0.12s',
-          }}>›</span>
+          }} />
         </IconBtn>
 
         {/* Find input + embedded toggles */}
@@ -170,11 +173,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
             onKeyDown={handleFindKeyDown}
             placeholder="Find"
             title={state.regexError ?? undefined}
-            style={{
-              ...inputStyle,
-              paddingRight: togglesWidth,
-              borderColor: inputBorderColor,
-            }}
+            style={{ ...inputStyle, paddingRight: togglesWidth, borderColor: inputBorderColor }}
           />
           <div style={{
             position: 'absolute',
@@ -187,15 +186,15 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
           }}>
             <IconBtn title="Match Case (Alt+C)" active={state.caseSensitive}
               onClick={() => actions.setCaseSensitive(!state.caseSensitive)}>
-              <span style={{ fontStyle: 'italic', fontWeight: 'bold', fontSize: 12, letterSpacing: '-0.5px' }}>Aa</span>
+              <Svg html={caseSensitiveSvg} />
             </IconBtn>
             <IconBtn title="Match Whole Word (Alt+W)" active={state.wholeWord}
               onClick={() => actions.setWholeWord(!state.wholeWord)}>
-              <span style={{ fontFamily: 'monospace', textDecoration: 'underline', fontSize: 13 }}>W</span>
+              <Svg html={wholeWordSvg} />
             </IconBtn>
             <IconBtn title="Use Regular Expression (Alt+R)" active={state.useRegex}
               onClick={() => actions.setUseRegex(!state.useRegex)}>
-              <span style={{ fontFamily: 'monospace', fontSize: 12 }}>.*</span>
+              <Svg html={regexSvg} />
             </IconBtn>
           </div>
         </div>
@@ -214,9 +213,15 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
 
         {/* Prev / Next / Close */}
         <div style={{ display: 'flex', gap: 2 }}>
-          <IconBtn title="Previous Match (Shift+Enter)" disabled={state.matchCount === 0} onClick={actions.prev}>↑</IconBtn>
-          <IconBtn title="Next Match (Enter)" disabled={state.matchCount === 0} onClick={actions.next}>↓</IconBtn>
-          <IconBtn title="Close (Escape)" onClick={actions.close}>✕</IconBtn>
+          <IconBtn title="Previous Match (Shift+Enter)" disabled={state.matchCount === 0} onClick={actions.prev}>
+            <Svg html={arrowUpSvg} />
+          </IconBtn>
+          <IconBtn title="Next Match (Enter)" disabled={state.matchCount === 0} onClick={actions.next}>
+            <Svg html={arrowDownSvg} />
+          </IconBtn>
+          <IconBtn title="Close (Escape)" onClick={actions.close}>
+            <Svg html={closeSvg} />
+          </IconBtn>
         </div>
       </div>
 
@@ -244,14 +249,14 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replace}
             >
-              <ReplaceIcon />
+              <Svg html={replaceSvg} />
             </IconBtn>
             <IconBtn
               title="Replace All"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replaceAll}
             >
-              <ReplaceAllIcon />
+              <Svg html={replaceAllSvg} />
             </IconBtn>
           </div>
         </div>
@@ -262,7 +267,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
         <div style={{
           fontSize: 12,
           color: '#f48771',
-          paddingLeft: 27,
+          paddingLeft: 20,
           maxWidth: 420,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
