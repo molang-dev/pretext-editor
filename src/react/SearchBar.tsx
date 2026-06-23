@@ -77,6 +77,12 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
   if (!state.isOpen) return null
 
   const handleFindKeyDown = (e: React.KeyboardEvent) => {
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const k = e.key.toLowerCase()
+      if (k === 'c') { e.preventDefault(); actions.setCaseSensitive(!state.caseSensitive); return }
+      if (k === 'w') { e.preventDefault(); actions.setWholeWord(!state.wholeWord); return }
+      if (k === 'r') { e.preventDefault(); actions.setUseRegex(!state.useRegex); return }
+    }
     if (e.key === 'Enter') {
       e.preventDefault()
       e.shiftKey ? actions.prev() : actions.next()
@@ -88,9 +94,18 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
   }
 
   const handleReplaceKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const k = e.key.toLowerCase()
+      if (k === 'c') { e.preventDefault(); actions.setCaseSensitive(!state.caseSensitive); return }
+      if (k === 'w') { e.preventDefault(); actions.setWholeWord(!state.wholeWord); return }
+      if (k === 'r') { e.preventDefault(); actions.setUseRegex(!state.useRegex); return }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.key === 'Enter') {
       e.preventDefault()
-      if (!readOnly) e.shiftKey ? actions.replaceAll() : actions.replace()
+      if (!readOnly) actions.replaceAll()
+    } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault()
+      if (!readOnly) actions.replace()
     } else if (e.key === 'Escape') {
       e.preventDefault()
       actions.close()
@@ -100,13 +115,13 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
 
   const hasError = !!state.regexError
   const noMatches = !!state.query && !hasError && state.matchCount === 0
-  const inputBorderColor = hasError || noMatches ? '#f48771' : '#555'
+  const inputBorderColor = hasError ? '#f48771' : '#555'
 
   const countText = hasError
     ? ''
     : state.matchCount === 0
       ? (state.query ? 'No results' : '')
-      : `${state.currentIndex + 1} of ${state.matchCount}`
+      : `${state.currentIndex + 1} of ${state.matchCount > 999 ? '999+' : state.matchCount}`
 
   const countColor = hasError || noMatches ? '#f48771' : '#d4d4d4'
 
@@ -115,7 +130,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
 
   const inputStyle: React.CSSProperties = {
     width: 240,
-    background: '#3c3c3c',
+    background: noMatches ? 'rgba(228,86,73,0.18)' : '#3c3c3c',
     border: `1px solid #555`,
     borderRadius: 3,
     color: '#d4d4d4',
