@@ -1,0 +1,38 @@
+.pteic-cm {
+  position: fixed;
+  background: #252526;
+  border: 1px solid #454545;
+  border-radius: 8px;
+  padding: 4px 0;
+  z-index: 9999;
+  min-width: 160px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  user-select: none;
+}
+
+.pteic-cm-separator {
+  height: 1px;
+  background: #454545;
+  margin: 4px 0;
+}
+
+.pteic-cm-item {
+  padding: 5px 20px;
+  font-size: 13px;
+  color: #cccccc;
+  cursor: pointer;
+  background: transparent;
+}
+
+.pteic-cm-item:hover {
+  background: #094771;
+}
+
+.pteic-cm-item--disabled {
+  color: #5a5a5a;
+  cursor: default;
+}
+
+.pteic-cm-item--disabled:hover {
+  background: transparent;
+}

@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { ContextMenu } from './ContextMenu'
 import { SearchBar } from './SearchBar'
+import './pretext-editor.css'
 import { EditorController } from '../controller/EditorController'
 import type { EditorControllerState } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'
@@ -142,33 +143,18 @@ export const PretextEditor = forwardRef<
 
   return (
     <div
-      className={className}
-      style={{
-        position: 'relative',
-        height: '100%',
-        width: '100%',
-        overflow: 'hidden',
-        ...style,
-      }}
+      className={`pteic-editor-root${className ? ' ' + className : ''}`}
+      style={style}
     >
       <div
         ref={containerRef}
-        style={{
-          position: 'absolute',
-          inset: 0,
-          overflow: 'auto',
-          outline: 'none',
-          cursor: 'text',
-        }}
+        className="pteic-editor-scroll"
         onClick={(e) => {
           if (e.target === containerRef.current) textareaRef.current?.focus({ preventScroll: true })
         }}
       >
-        <div style={{ height: totalHeight, position: 'relative' }}>
-          <canvas
-            ref={canvasRef}
-            style={{ position: 'sticky', top: 0, display: 'block', width: '100%' }}
-          />
+        <div className="pteic-editor-content" style={{ height: totalHeight }}>
+          <canvas ref={canvasRef} className="pteic-editor-canvas" />
         </div>
 
         {state?.menuPos && (
@@ -183,20 +169,7 @@ export const PretextEditor = forwardRef<
         <textarea
           ref={textareaRef}
           rows={1}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: 1,
-            height: 1,
-            opacity: 0,
-            overflow: 'hidden',
-            resize: 'none',
-            border: 'none',
-            outline: 'none',
-            padding: 0,
-            pointerEvents: 'none',
-          }}
+          className="pteic-editor-textarea"
           onKeyDown={(e) => ctrlRef.current?.onKeyDown(e.nativeEvent)}
           onCompositionStart={() => ctrlRef.current?.onCompositionStart()}
           onCompositionEnd={(e) => ctrlRef.current?.onCompositionEnd(e.nativeEvent)}

@@ -1,0 +1,40 @@
+.pteic-editor-root {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.pteic-editor-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  outline: none;
+  cursor: text;
+}
+
+.pteic-editor-content {
+  position: relative;
+}
+
+.pteic-editor-canvas {
+  position: sticky;
+  top: 0;
+  display: block;
+  width: 100%;
+}
+
+.pteic-editor-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  resize: none;
+  border: none;
+  outline: none;
+  padding: 0;
+  pointer-events: none;
+}

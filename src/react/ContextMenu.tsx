@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { ContextMenuItem } from './PretextEditor'
+import './context-menu.css'
 
 interface Props {
   x: number
@@ -28,25 +29,10 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   }, [onClose])
 
   return (
-    <div
-      ref={ref}
-      style={{
-        position: 'fixed',
-        left: x,
-        top: y,
-        background: '#252526',
-        border: '1px solid #454545',
-        borderRadius: 8,
-        padding: '4px 0',
-        zIndex: 9999,
-        minWidth: 160,
-        boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-        userSelect: 'none',
-      }}
-    >
+    <div ref={ref} className="pteic-cm" style={{ left: x, top: y }}>
       {items.map((item, i) =>
         item.separator ? (
-          <div key={i} style={{ height: 1, background: '#454545', margin: '4px 0' }} />
+          <div key={i} className="pteic-cm-separator" />
         ) : (
           <MenuRow key={i} item={item} onClose={onClose} />
         )
@@ -64,19 +50,7 @@ function MenuRow({ item, onClose }: { item: ContextMenuItem; onClose: () => void
           onClose()
         }
       }}
-      style={{
-        padding: '5px 20px',
-        fontSize: 13,
-        color: item.disabled ? '#5a5a5a' : '#cccccc',
-        cursor: item.disabled ? 'default' : 'pointer',
-        background: 'transparent',
-      }}
-      onMouseEnter={e => {
-        if (!item.disabled) (e.currentTarget as HTMLDivElement).style.background = '#094771'
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLDivElement).style.background = 'transparent'
-      }}
+      className={`pteic-cm-item${item.disabled ? ' pteic-cm-item--disabled' : ''}`}
     >
       {item.label}
     </div>
