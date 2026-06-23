@@ -125,6 +125,12 @@ export const PretextEditor = forwardRef<
     prev: () => ctrlRef.current?.searchPrev(),
     close: () => ctrlRef.current?.closeSearch(),
     setCaseSensitive: (v) => ctrlRef.current?.setSearchCaseSensitive(v),
+    setWholeWord: (v) => ctrlRef.current?.setSearchWholeWord(v),
+    setUseRegex: (v) => ctrlRef.current?.setSearchUseRegex(v),
+    toggleReplace: () => ctrlRef.current?.toggleReplace(),
+    setReplaceQuery: (q) => ctrlRef.current?.setReplaceQuery(q),
+    replace: () => ctrlRef.current?.replace(),
+    replaceAll: () => ctrlRef.current?.replaceAll(),
   }
 
   const searchNode = state?.searchState

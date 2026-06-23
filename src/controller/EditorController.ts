@@ -398,6 +398,75 @@ export class EditorController {
     this.notifyAndRepaint()
   }
 
+  toggleReplace(): void {
+    this.searchState = { ...this.searchState, showReplace: !this.searchState.showReplace }
+    this.notifyAndRepaint()
+  }
+
+  setReplaceQuery(q: string): void {
+    this.searchState = { ...this.searchState, replaceQuery: q }
+    this.notifyAndRepaint()
+  }
+
+  replace(): void {
+    const idx = this.searchState.currentIndex
+    const match = this.searchMatches[idx]
+    if (!match || this.searchState.regexError) return
+    const { query, replaceQuery, caseSensitive, wholeWord, useRegex } = this.searchState
+
+    let replacement: string
+    if (useRegex) {
+      try {
+        const flags = caseSensitive ? '' : 'i'
+        const src = wholeWord ? `(?<![\\w])(?:${query})(?![\\w])` : query
+        const re = new RegExp(src, flags)
+        const matched = getSelectedText(this.doc.lines, { anchor: match.anchor, head: match.head })
+        replacement = matched.replace(re, replaceQuery)
+      } catch { return }
+    } else {
+      replacement = replaceQuery
+    }
+
+    const sel = { anchor: match.anchor, head: match.head }
+    const afterDelete = deleteSelectedText(this.doc, sel)
+    this.commitUpdate(insert(afterDelete, replacement), null)
+    this.recomputeSearch()
+    this.notifyAndRepaint()
+  }
+
+  replaceAll(): void {
+    const { query, replaceQuery, caseSensitive, wholeWord, useRegex, regexError } = this.searchState
+    if (!query || this.searchMatches.length === 0 || regexError) return
+
+    let pattern: RegExp
+    try {
+      const flags = caseSensitive ? 'g' : 'gi'
+      if (useRegex) {
+        const src = wholeWord ? `(?<![\\w])(?:${query})(?![\\w])` : query
+        pattern = new RegExp(src, flags)
+      } else {
+        const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const src = wholeWord ? `\\b${escaped}\\b` : escaped
+        pattern = new RegExp(src, flags)
+      }
+    } catch { return }
+
+    const oldText = toString(this.doc)
+    const newText = oldText.replace(pattern, replaceQuery)
+    if (newText === oldText) return
+
+    this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
+    if (this.undoStack.length > 200) this.undoStack.shift()
+    this.redoStack = []
+    this.doc = fromString(newText)
+    this.selAnchor = null
+    this.extraCursors = []
+    this.lastExternalValue = newText
+    this.onChange(newText)
+    this.recomputeSearch()
+    this.notifyAndRepaint()
+  }
+
   private recomputeSearch(): void {
     const { query, caseSensitive, wholeWord, useRegex } = this.searchState
     const { matches, regexError } = searchLines(this.doc.lines, query, caseSensitive, wholeWord, useRegex)
