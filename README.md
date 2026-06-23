@@ -9,6 +9,7 @@
 - **Canvas 虚拟滚动** — 万行级大文件流畅编辑，只渲染可见行
 - **语法高亮** — 基于 shiki，支持 30+ 语言（`dark-plus` 主题）
 - **VSCode 快捷键** — 导航、编辑、选择、剪贴板、历史
+- **搜索替换** — Ctrl+F 搜索，Ctrl+H 替换，支持大小写/全词/正则，渐进式异步搜索
 - **多光标编辑** — Alt+Click 添加光标，Ctrl+D 逐个选中相同词，Ctrl+Shift+L 全选
 - **列选择** — Alt+Shift+拖拽
 - **缩进引导线** — 自动检测缩进单位，光标所在作用域高亮
@@ -20,6 +21,33 @@
 
 ```bash
 npm install pretext-editor
+```
+
+## CSS 与图标
+
+编辑器需要配套 CSS 才能正常渲染（搜索栏、右键菜单、图标等）。各框架导入路径：
+
+```ts
+// React
+import 'pretext-editor/react/index.css'
+
+// Vue
+import 'pretext-editor/vue/index.css'
+
+// Svelte — CSS is embedded in the component, no import needed
+
+// Angular / Vanilla HTML
+// Copy node_modules/pretext-editor/dist/react/index.css into your project and link it
+```
+
+此外，图标 SVG 文件需要部署到服务器的 `/icons/` 路径下。将 `node_modules/pretext-editor/dist/icons/` 复制到项目的静态资源目录：
+
+```
+public/icons/         # Vite / Angular
+├── arrow-down.svg
+├── arrow-up.svg
+├── case-sensitive.svg
+├── ... (12 个文件)
 ```
 
 ## 快速开始
@@ -161,15 +189,15 @@ console.log(toString(doc3))
 | `binding` | `IEditorBinding` | — | 双向滚动绑定（用于双栏预览） |
 | `active` | `boolean` | `false` | 是否活跃面板 |
 | `contextMenuItems` | `(builtins) => ContextMenuItem[]` | — | 自定义右键菜单 |
-| `renderSearchBar` | `(state: SearchState, actions: SearchActions) => ReactNode` | — | 覆盖默认搜索框 UI |
+| `renderSearchBar` | `(state: SearchState, actions: SearchActions) => ReactNode` | — | 自定义搜索栏（React / Vue） |
 
 ## 搜索
 
-按 `Ctrl/Cmd+F` 打开搜索框，`Escape` 关闭。`Enter` 跳下一个，`Shift+Enter` 跳上一个。
+按 `Ctrl/Cmd+F` 打开搜索框，`Ctrl/Cmd+H` 打开替换。`Escape` 关闭。`Enter` 跳下一个，`Shift+Enter` 跳上一个。React、Vue、Svelte 均内建搜索栏 UI，开箱即用。
 
 ### 默认 UI
 
-React 版本开箱即用，右上角浮层不随内容滚动：
+所有框架组件（React / Vue / Svelte）均自带搜索栏，右上角浮层不随内容滚动：
 
 ```tsx
 <PretextEditor value={code} onChange={setCode} />
@@ -198,10 +226,17 @@ import type { SearchState, SearchActions } from 'pretext-editor/react'
 | `isOpen` | `boolean` | 搜索框是否打开 |
 | `query` | `string` | 当前搜索词 |
 | `caseSensitive` | `boolean` | 是否大小写敏感 |
+| `wholeWord` | `boolean` | 是否全词匹配 |
+| `useRegex` | `boolean` | 是否正则表达式 |
 | `matchCount` | `number` | 匹配总数 |
 | `currentIndex` | `number` | 当前高亮的匹配索引（0-based，-1 表示无匹配） |
+| `showReplace` | `boolean` | 是否显示替换行 |
+| `replaceQuery` | `string` | 替换文本 |
+| `preserveCase` | `boolean` | 替换时保留大小写 |
+| `regexError` | `string \| null` | 正则表达式错误信息 |
+| `focusToken` | `number` | 每次 `openSearch()` 调用时递增，用于组件检测重新聚焦 |
 
-`SearchActions` 方法：`setQuery(q)` · `next()` · `prev()` · `setCaseSensitive(v)` · `close()`
+`SearchActions` 方法：`setQuery(q)` · `next()` · `prev()` · `close()` · `setCaseSensitive(v)` · `setWholeWord(v)` · `setUseRegex(v)` · `toggleReplace()` · `setReplaceQuery(q)` · `setPreserveCase(v)` · `replace()` · `replaceAll()`
 
 ### 框架无关用法
 
@@ -278,6 +313,12 @@ import {
 | Ctrl+C / X / V | 复制 / 剪切 / 粘贴 |
 | Ctrl+Z / Ctrl+Y | 撤销 / 重做 |
 | Ctrl+F | 打开搜索框 |
+| Ctrl+H | 打开搜索并展开替换行 |
+| Enter | 下一个匹配（搜索栏聚焦时） |
+| Shift+Enter | 上一个匹配 |
+| Alt+C | 切换大小写敏感（搜索栏聚焦时） |
+| Alt+W | 切换全词匹配 |
+| Alt+R | 切换正则 |
 | Escape | 关闭搜索框 / 取消多光标 |
 
 ## 支持的语言

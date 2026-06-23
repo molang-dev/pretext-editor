@@ -1,6 +1,6 @@
 {
   "name": "pretext-editor",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "private": false,
   "description": "High-performance Canvas-virtualized text editor for large documents based @chenglou/pretext",
   "license": "MIT",
@@ -35,6 +35,8 @@
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.cjs"
     },
+    "./react/index.css": "./dist/react/index.css",
+    "./vue/index.css": "./dist/vue/index.css",
     "./svelte": {
       "types": "./dist/svelte/index.d.ts",
       "svelte": "./dist/svelte/PretextEditor.svelte"

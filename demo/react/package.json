@@ -6,7 +6,7 @@
     "dev": "vite"
   },
   "dependencies": {
-    "pretext-editor": "0.4.2",
+    "pretext-editor": "file:../..",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

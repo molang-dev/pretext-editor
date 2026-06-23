@@ -4,6 +4,34 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.5.0] — 2026-06-24
+
+### Added
+- **Search bar** — `Ctrl/Cmd+F` opens a VS Code-style search bar with match highlighting, result navigation (Enter / Shift+Enter), and match count display. The bar floats top-right and does not scroll with content.
+- **Replace** — `Ctrl/Cmd+H` opens search with the replace row expanded. Supports single replace (`Enter`) and replace-all (`Ctrl+Alt+Enter`). Includes **Preserve Case** mode that mirrors the original match's case pattern (UPPER / lower / Title).
+- **Search toggles** — Match Case (`Alt+C`), Match Whole Word (`Alt+W`), and Use Regex (`Alt+R`) toggles embedded in the find input. Invalid regex shows an inline error line instead of a popup.
+- **Progressive async search** — search runs off the main thread in chunks so large files never freeze the UI.
+- **`renderSearchBar` prop** — React and Vue wrappers accept an optional render function that receives `SearchState` + `SearchActions`, replacing the built-in search bar entirely.
+- **SVG icon system** — 12 icons (chevron, arrows, close, case-sensitive, whole-word, regex, replace, replace-all, preserve-case, text-size, word-wrap) distributed as CSS `mask-image` references to `/icons/*.svg` files. No inline SVG payload in JavaScript bundles.
+- **CSS class-based styling** — all inline styles replaced with prefixed CSS classes (`pteic-editor-*`, `pteic-sb-*`, `pteic-cm-*`, `pteic-btn-*`, `pteic-*`) across React, Vue, and Svelte components. CSS is bundled per framework entry (`dist/react/index.css`, `dist/vue/index.css`), and the Svelte component embeds its styles globally.
+- **Vue SearchBar** — the Vue wrapper now ships a full built-in search bar (built with `h()` render functions), matching the React implementation.
+- **Svelte SearchBar** — the Svelte wrapper includes a full built-in search bar in native Svelte template syntax, plus embedded `:global()` CSS for all editor chrome (icons, context menu, editor shell, search bar).
+- **CSS exports** — `package.json` exports `./react/index.css` and `./vue/index.css`.
+- **Angular + Vanilla demos with SearchBar** — Angular demo uses `EditorController` directly with a full HTML search bar template; vanilla demo builds a plain-DOM search bar wired to the controller.
+- **`EditorController` search API** — `openSearch(query?)`, `closeSearch()`, `setSearchQuery(q)`, `searchNext()`, `searchPrev()`, `setSearchCaseSensitive(v)`, `setSearchWholeWord(v)`, `setSearchUseRegex(v)`, `toggleReplace()`, `setReplaceQuery(q)`, `setPreserveCase(v)`, `replace()`, `replaceAll()`.
+
+### Changed
+- **Vanilla demo now includes search bar and keyboard handling** — textarea forwards `keydown` events to `EditorController`; search bar is built with plain DOM and reflects live search state from `ctrl.getState().searchState`.
+- **Svelte `tabindex` set to `-1`** on the editor container (`role="textbox"`) to satisfy accessibility linting without stealing focus from the hidden `<textarea>`.
+- **Build script copies icons** — `onSuccess` hook copies `src/icons/*.svg` → `dist/icons/` and `src/core/search.ts` → `dist/core/`.
+
+### Fixed
+- **Ctrl+F in search input no longer opens browser search** — all framework search bar handlers intercept `Ctrl/Cmd+F` when the find/replace inputs are focused.
+- **Svelte search input single-character replacement** — auto-focus+select now only fires when the search bar transitions from closed → open, not on every state change.
+- **Focus returns to editor on Escape / close** — closing the search bar returns focus to the hidden `<textarea>` in React, Vue, Svelte, and vanilla.
+- **Vanilla demo non-responsive keyboard** — container click handler now unconditionally focuses the textarea (instead of requiring `e.target === container`).
+- **Vanilla demo icons** — build script syncs icon SVGs to the correct directory alongside CSS.
+
 ## [0.4.0] — 2026-06-19
 
 ### Added

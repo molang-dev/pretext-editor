@@ -46,11 +46,13 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
       findRef.current?.focus()
       findRef.current?.select()
     }
-  }, [state.isOpen])
+  }, [state.isOpen, state.focusToken])
 
   if (!state.isOpen) return null
 
   const handleFindKeyDown = (e: React.KeyboardEvent) => {
+    // Block browser Ctrl+F / Cmd+F when search input is focused
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); return }
     if (e.altKey && !e.ctrlKey && !e.metaKey) {
       const k = e.key.toLowerCase()
       if (k === 'c') { e.preventDefault(); actions.setCaseSensitive(!state.caseSensitive); return }
@@ -68,6 +70,8 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
   }
 
   const handleReplaceKeyDown = (e: React.KeyboardEvent) => {
+    // Block browser Ctrl+F / Cmd+F when search input is focused
+    if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); return }
     if (e.altKey && !e.ctrlKey && !e.metaKey) {
       const k = e.key.toLowerCase()
       if (k === 'c') { e.preventDefault(); actions.setCaseSensitive(!state.caseSensitive); return }

@@ -1,7 +1,7 @@
 import { Component, ViewChild, ElementRef, AfterViewInit, OnDestroy, NgZone, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core'
 import { EditorController } from 'pretext-editor'
 import { FONT_SIZE_TO_LINE_HEIGHT } from 'pretext-editor'
-import type { ContextMenuItem } from 'pretext-editor'
+import type { ContextMenuItem, SearchState, SearchActions } from 'pretext-editor'
 
 const SAMPLE_CODE = `function fibonacci(n: number): number {
   if (n <= 1) return n
@@ -41,30 +41,143 @@ for (let i = 0; i < 10; i++) {
         <button class="btn" (click)="scrollToTop()">Scroll to Top</button>
       </div>
 
-      <div #container class="editor-wrap">
-        <div [style.height.px]="totalHeight" style="position:relative">
-          <canvas #canvas style="position:sticky;top:0;display:block;width:100%"></canvas>
+      <div class="editor-wrap-shell">
+        <div #container class="pteic-editor-scroll" style="position:relative;overflow:auto;outline:none;cursor:text">
+          <div [style.height.px]="totalHeight" class="pteic-editor-content">
+            <canvas #canvas class="pteic-editor-canvas"></canvas>
+          </div>
+
+          @if (menuPos) {
+            <div class="pteic-cm" [style.left.px]="menuPos.x" [style.top.px]="menuPos.y">
+              @for (item of resolvedMenuItems; track $index) {
+                @if (item.separator) {
+                  <div class="pteic-cm-separator"></div>
+                } @else {
+                  <div class="pteic-cm-item"
+                    [class.pteic-cm-item--disabled]="item.disabled"
+                    (click)="onMenuItemClick(item)">
+                    {{ item.label }}
+                  </div>
+                }
+              }
+            </div>
+          }
+
+          <textarea #textarea rows="1" class="pteic-editor-textarea"
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          </textarea>
         </div>
 
-        @if (menuPos) {
-          <div class="ctx-menu" [style.left.px]="menuPos.x" [style.top.px]="menuPos.y">
-            @for (item of resolvedMenuItems; track $index) {
-              @if (item.separator) {
-                <div class="ctx-sep"></div>
-              } @else {
-                <div class="ctx-item"
-                  [class.disabled]="item.disabled"
-                  (click)="onMenuItemClick(item)">
-                  {{ item.label }}
+        <!-- Search bar -->
+        @if (searchState.isOpen) {
+          <div class="pteic-sb">
+            <!-- Find row -->
+            <div class="pteic-sb-row">
+              <button class="pteic-btn pteic-btn--narrow"
+                [title]="searchState.showReplace ? 'Collapse Replace' : 'Expand Replace'"
+                (click)="toggleReplace()">
+                <span class="pteic pteic-chevron-down"
+                  [class.pteic-chevron-down--collapsed]="!searchState.showReplace">
+                </span>
+              </button>
+
+              <div class="pteic-sb-input-wrap">
+                <input #findInput
+                  [value]="searchState.query"
+                  (input)="onFindInput($event)"
+                  (keydown)="onFindKeyDown($event)"
+                  placeholder="Find"
+                  [title]="searchState.regexError ?? ''"
+                  class="pteic-sb-input pteic-sb-find-input"
+                  [class.pteic-sb-input--no-matches]="noMatches()"
+                  [class.pteic-sb-input--error]="searchState.regexError">
+                <div class="pteic-sb-toggles">
+                  <button class="pteic-btn"
+                    [class.pteic-btn--active]="searchState.caseSensitive"
+                    title="Match Case (Alt+C)"
+                    (click)="toggleCaseSensitive()">
+                    <span class="pteic pteic-case-sensitive"></span>
+                  </button>
+                  <button class="pteic-btn"
+                    [class.pteic-btn--active]="searchState.wholeWord"
+                    title="Match Whole Word (Alt+W)"
+                    (click)="toggleWholeWord()">
+                    <span class="pteic pteic-whole-word"></span>
+                  </button>
+                  <button class="pteic-btn"
+                    [class.pteic-btn--active]="searchState.useRegex"
+                    title="Use Regular Expression (Alt+R)"
+                    (click)="toggleUseRegex()">
+                    <span class="pteic pteic-regex"></span>
+                  </button>
                 </div>
-              }
+              </div>
+
+              <span class="pteic-sb-count" [class.pteic-sb-count--error]="!!searchState.regexError || noMatches()">
+                {{ countText() }}
+              </span>
+
+              <div class="pteic-sb-btns">
+                <button class="pteic-btn" title="Previous Match (Shift+Enter)"
+                  [disabled]="searchState.matchCount === 0"
+                  (click)="searchPrev()">
+                  <span class="pteic pteic-arrow-up"></span>
+                </button>
+                <button class="pteic-btn" title="Next Match (Enter)"
+                  [disabled]="searchState.matchCount === 0"
+                  (click)="searchNext()">
+                  <span class="pteic pteic-arrow-down"></span>
+                </button>
+                <button class="pteic-btn" title="Close (Escape)"
+                  (click)="closeSearch()">
+                  <span class="pteic pteic-close"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Replace row -->
+            @if (searchState.showReplace) {
+              <div class="pteic-sb-row">
+                <div class="pteic-sb-spacer"></div>
+                <div class="pteic-sb-input-wrap">
+                  <input #replaceInput
+                    [value]="searchState.replaceQuery"
+                    (input)="onReplaceInput($event)"
+                    (keydown)="onReplaceKeyDown($event)"
+                    placeholder="Replace"
+                    class="pteic-sb-input pteic-sb-replace-input"
+                    [class.pteic-sb-input--no-matches]="noMatches()">
+                  <div class="pteic-sb-overlay">
+                    <button class="pteic-btn"
+                      [class.pteic-btn--active]="searchState.preserveCase"
+                      title="Preserve Case (AB)"
+                      [disabled]="searchState.useRegex"
+                      (click)="togglePreserveCase()">
+                      <span class="pteic pteic-preserve-case"></span>
+                    </button>
+                  </div>
+                </div>
+                <div class="pteic-sb-btns">
+                  <button class="pteic-btn" title="Replace (Enter)"
+                    [disabled]="searchState.matchCount === 0 || !!searchState.regexError"
+                    (click)="replaceOne()">
+                    <span class="pteic pteic-replace"></span>
+                  </button>
+                  <button class="pteic-btn" title="Replace All (Ctrl+Alt+Enter)"
+                    [disabled]="searchState.matchCount === 0 || !!searchState.regexError"
+                    (click)="replaceAll()">
+                    <span class="pteic pteic-replace-all"></span>
+                  </button>
+                </div>
+              </div>
+            }
+
+            <!-- Regex error -->
+            @if (searchState.regexError) {
+              <div class="pteic-sb-error">{{ searchState.regexError }}</div>
             }
           </div>
         }
-
-        <textarea #textarea rows="1" class="hidden-input"
-          autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
-        </textarea>
       </div>
     </div>
   `,
@@ -86,22 +199,7 @@ for (let i = 0; i < 10; i++) {
       background: #0e639c; color: #fff; border: none;
       border-radius: 4px; padding: 4px 12px; font-size: 13px; cursor: pointer;
     }
-    .editor-wrap { flex: 1; position: relative; overflow: auto; outline: none; cursor: text; }
-    .hidden-input {
-      position: absolute; top: 0; left: 0; width: 1px; height: 1px;
-      opacity: 0; overflow: hidden; resize: none; border: none;
-      outline: none; padding: 0; pointer-events: none;
-    }
-    .ctx-menu {
-      position: fixed; background: #252526; border: 1px solid #454545;
-      border-radius: 8px; padding: 4px 0; z-index: 9999; min-width: 160px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.4); user-select: none;
-    }
-    .ctx-sep { height: 1px; background: #454545; margin: 4px 0; }
-    .ctx-item {
-      padding: 5px 20px; font-size: 13px; color: #cccccc; cursor: pointer; background: transparent;
-    }
-    .ctx-item.disabled { color: #5a5a5a; cursor: default; }
+    .editor-wrap-shell { flex: 1; position: relative; overflow: hidden; }
   `],
 })
 export class AppComponent implements AfterViewInit, OnDestroy {
@@ -111,12 +209,20 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   @ViewChild('container') containerRef!: ElementRef<HTMLDivElement>
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>
   @ViewChild('textarea') textareaRef!: ElementRef<HTMLTextAreaElement>
+  @ViewChild('findInput') findInputRef!: ElementRef<HTMLInputElement>
+  @ViewChild('replaceInput') replaceInputRef!: ElementRef<HTMLInputElement>
 
   menuPos: { x: number; y: number } | null = null
   resolvedMenuItems: ContextMenuItem[] = []
   totalHeight = 0
+  searchState: SearchState = {
+    query: '', caseSensitive: false, wholeWord: false, useRegex: false,
+    matchCount: 0, currentIndex: -1, isOpen: false, regexError: null,
+    showReplace: false, replaceQuery: '', preserveCase: false,
+  }
 
   private ctrl!: EditorController
+  private searchOpenAtLastChange = false
 
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
@@ -136,6 +242,15 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           this.menuPos = s.menuPos
           this.resolvedMenuItems = s.menuItems
           this.totalHeight = Math.max(1, s.doc.lines.length) * FONT_SIZE_TO_LINE_HEIGHT(14) + 16
+          // Track search state changes
+          const wasClosed = !this.searchState.isOpen
+          this.searchState = { ...s.searchState }
+          if (wasClosed && this.searchState.isOpen) {
+            requestAnimationFrame(() => {
+              this.findInputRef?.nativeElement?.focus()
+              this.findInputRef?.nativeElement?.select()
+            })
+          }
           this.cdr.detectChanges()
         },
       )
@@ -153,5 +268,58 @@ export class AppComponent implements AfterViewInit, OnDestroy {
 
   onMenuItemClick(item: ContextMenuItem): void {
     if (!item.disabled) { item.onClick(); this.ctrl?.closeMenu() }
+  }
+
+  // ---- Search helpers ----
+  noMatches(): boolean {
+    return !!this.searchState.query && !this.searchState.regexError && this.searchState.matchCount === 0
+  }
+  countText(): string {
+    if (this.searchState.regexError) return ''
+    if (this.searchState.matchCount === 0) return this.searchState.query ? 'No results' : ''
+    return `${this.searchState.currentIndex + 1} of ${this.searchState.matchCount > 999 ? '999+' : this.searchState.matchCount}`
+  }
+
+  // ---- Search actions ----
+  onFindInput(e: Event): void { this.ctrl?.setSearchQuery((e.target as HTMLInputElement).value) }
+  onReplaceInput(e: Event): void { this.ctrl?.setReplaceQuery((e.target as HTMLInputElement).value) }
+  searchNext(): void { this.ctrl?.searchNext() }
+  searchPrev(): void { this.ctrl?.searchPrev() }
+  closeSearch(): void { this.ctrl?.closeSearch() }
+  toggleReplace(): void { this.ctrl?.toggleReplace() }
+  toggleCaseSensitive(): void { this.ctrl?.setSearchCaseSensitive(!this.searchState.caseSensitive) }
+  toggleWholeWord(): void { this.ctrl?.setSearchWholeWord(!this.searchState.wholeWord) }
+  toggleUseRegex(): void { this.ctrl?.setSearchUseRegex(!this.searchState.useRegex) }
+  togglePreserveCase(): void { this.ctrl?.setPreserveCase(!this.searchState.preserveCase) }
+  replaceOne(): void { this.ctrl?.replace() }
+  replaceAll(): void { this.ctrl?.replaceAll() }
+
+  onFindKeyDown(e: KeyboardEvent): void {
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const k = e.key.toLowerCase()
+      if (k === 'c') { e.preventDefault(); this.toggleCaseSensitive(); return }
+      if (k === 'w') { e.preventDefault(); this.toggleWholeWord(); return }
+      if (k === 'r') { e.preventDefault(); this.toggleUseRegex(); return }
+    }
+    if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? this.searchPrev() : this.searchNext(); return }
+    if (e.key === 'Escape') { e.preventDefault(); this.closeSearch(); return }
+    e.stopPropagation()
+  }
+
+  onReplaceKeyDown(e: KeyboardEvent): void {
+    if (e.altKey && !e.ctrlKey && !e.metaKey) {
+      const k = e.key.toLowerCase()
+      if (k === 'c') { e.preventDefault(); this.toggleCaseSensitive(); return }
+      if (k === 'w') { e.preventDefault(); this.toggleWholeWord(); return }
+      if (k === 'r') { e.preventDefault(); this.toggleUseRegex(); return }
+    }
+    if ((e.ctrlKey || e.metaKey) && e.altKey && e.key === 'Enter') {
+      e.preventDefault(); this.replaceAll(); return
+    }
+    if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+      e.preventDefault(); this.replaceOne(); return
+    }
+    if (e.key === 'Escape') { e.preventDefault(); this.closeSearch(); return }
+    e.stopPropagation()
   }
 }

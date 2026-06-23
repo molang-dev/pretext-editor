@@ -16,7 +16,8 @@
             "index": "src/index.html",
             "browser": "src/main.ts",
             "tsConfig": "tsconfig.app.json",
-            "polyfills": []
+            "polyfills": [],
+            "styles": ["src/styles.css"]
           }
         },
         "serve": {

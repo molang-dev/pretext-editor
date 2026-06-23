@@ -37,11 +37,13 @@ export default defineConfig({
   // - Svelte: .svelte file compiled by consumer's Svelte compiler
   // - Angular: .ts with decorators needs Angular compiler; shipped as reference only
   onSuccess:
-    'mkdir -p dist/svelte dist/controller dist/core dist/angular && ' +
+    'mkdir -p dist/svelte dist/controller dist/core dist/angular dist/icons && ' +
     'cp src/svelte/PretextEditor.svelte dist/svelte/ && ' +
     'cp src/angular/editor.component.ts dist/angular/ && ' +
     'cp src/controller/EditorController.ts dist/controller/ && ' +
     'cp src/core/document.ts dist/core/ && ' +
     'cp src/core/renderer.ts dist/core/ && ' +
-    'cp src/core/tokenizer.ts dist/core/',
+    'cp src/core/tokenizer.ts dist/core/ && ' +
+    'cp src/core/search.ts dist/core/ && ' +
+    'cp src/icons/*.svg dist/icons/',
 })
