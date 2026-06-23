@@ -58,7 +58,7 @@ export const PretextEditor = defineComponent({
       tokenLines: undefined,
       menuPos: null,
       menuItems: [],
-      searchState: { query: '', caseSensitive: false, wholeWord: false, useRegex: false, matchCount: 0, currentIndex: -1, isOpen: false, regexError: null, showReplace: false, replaceQuery: '' },
+      searchState: { query: '', caseSensitive: false, wholeWord: false, useRegex: false, matchCount: 0, currentIndex: -1, isOpen: false, regexError: null, showReplace: false, replaceQuery: '', preserveCase: false },
     })
 
     const lineHeight = computed(() => FONT_SIZE_TO_LINE_HEIGHT(props.fontSize))
