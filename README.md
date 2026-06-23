@@ -161,6 +161,64 @@ console.log(toString(doc3))
 | `binding` | `IEditorBinding` | — | 双向滚动绑定（用于双栏预览） |
 | `active` | `boolean` | `false` | 是否活跃面板 |
 | `contextMenuItems` | `(builtins) => ContextMenuItem[]` | — | 自定义右键菜单 |
+| `renderSearchBar` | `(state: SearchState, actions: SearchActions) => ReactNode` | — | 覆盖默认搜索框 UI |
+
+## 搜索
+
+按 `Ctrl/Cmd+F` 打开搜索框，`Escape` 关闭。`Enter` 跳下一个，`Shift+Enter` 跳上一个。
+
+### 默认 UI
+
+React 版本开箱即用，右上角浮层不随内容滚动：
+
+```tsx
+<PretextEditor value={code} onChange={setCode} />
+```
+
+### 自定义 UI
+
+通过 `renderSearchBar` prop 完全替换默认搜索框：
+
+```tsx
+import type { SearchState, SearchActions } from 'pretext-editor/react'
+
+<PretextEditor
+  value={code}
+  onChange={setCode}
+  renderSearchBar={(state: SearchState, actions: SearchActions) => (
+    <MySearchBar state={state} actions={actions} />
+  )}
+/>
+```
+
+`SearchState` 字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `isOpen` | `boolean` | 搜索框是否打开 |
+| `query` | `string` | 当前搜索词 |
+| `caseSensitive` | `boolean` | 是否大小写敏感 |
+| `matchCount` | `number` | 匹配总数 |
+| `currentIndex` | `number` | 当前高亮的匹配索引（0-based，-1 表示无匹配） |
+
+`SearchActions` 方法：`setQuery(q)` · `next()` · `prev()` · `setCaseSensitive(v)` · `close()`
+
+### 框架无关用法
+
+```ts
+import { EditorController } from 'pretext-editor'
+
+ctrl.openSearch()            // 打开（可选传初始 query）
+ctrl.setSearchQuery('foo')   // 更新搜索词
+ctrl.searchNext()            // 下一个
+ctrl.searchPrev()            // 上一个
+ctrl.closeSearch()           // 关闭
+ctrl.setSearchCaseSensitive(true)
+
+// 搜索状态在 ctrl.getState().searchState 中
+```
+
+---
 
 ## Handle 方法
 
@@ -219,7 +277,8 @@ import {
 | Ctrl+Shift+K | 删除行 |
 | Ctrl+C / X / V | 复制 / 剪切 / 粘贴 |
 | Ctrl+Z / Ctrl+Y | 撤销 / 重做 |
-| Escape | 取消多光标 |
+| Ctrl+F | 打开搜索框 |
+| Escape | 关闭搜索框 / 取消多光标 |
 
 ## 支持的语言
 

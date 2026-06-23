@@ -4,14 +4,14 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
-  useMemo,
   useReducer,
   useRef,
 } from 'react'
 import { ContextMenu } from './ContextMenu'
+import { SearchBar } from './SearchBar'
 import { EditorController } from '../controller/EditorController'
 import type { EditorControllerState } from '../controller/EditorController'
-import type { TokenizedLine } from '../core/renderer'
+import type { SearchState, SearchActions } from '../core/search'
 import {
   PADDING_TOP,
   FONT_SIZE_TO_LINE_HEIGHT,
@@ -26,6 +26,7 @@ export type {
   IEditorBinding,
   PretextEditorHandle,
 } from '../controller/EditorController'
+export type { SearchState, SearchActions } from '../core/search'
 
 export interface PretextEditorProps {
   value: string
@@ -41,6 +42,7 @@ export interface PretextEditorProps {
   contextMenuItems?: (
     builtins: import('../controller/EditorController').ContextMenuBuiltins,
   ) => import('../controller/EditorController').ContextMenuItem[]
+  renderSearchBar?: (state: SearchState, actions: SearchActions) => React.ReactNode
 }
 
 export const PretextEditor = forwardRef<
@@ -59,6 +61,7 @@ export const PretextEditor = forwardRef<
     binding,
     active,
     contextMenuItems,
+    renderSearchBar,
   }: PretextEditorProps,
   ref,
 ): React.JSX.Element {
@@ -116,64 +119,88 @@ export const PretextEditor = forwardRef<
   const lineHeight = FONT_SIZE_TO_LINE_HEIGHT(fontSize)
   const totalHeight = state ? Math.max(1, state.doc.lines.length) * lineHeight + PADDING_TOP * 2 : 0
 
+  const searchActions: SearchActions = {
+    setQuery: (q) => ctrlRef.current?.setSearchQuery(q),
+    next: () => ctrlRef.current?.searchNext(),
+    prev: () => ctrlRef.current?.searchPrev(),
+    close: () => ctrlRef.current?.closeSearch(),
+    setCaseSensitive: (v) => ctrlRef.current?.setSearchCaseSensitive(v),
+  }
+
+  const searchNode = state?.searchState
+    ? (renderSearchBar
+        ? renderSearchBar(state.searchState, searchActions)
+        : <SearchBar state={state.searchState} actions={searchActions} />)
+    : null
+
   return (
     <div
-      ref={containerRef}
       className={className}
       style={{
         position: 'relative',
-        overflow: 'auto',
         height: '100%',
         width: '100%',
-        outline: 'none',
-        cursor: 'text',
+        overflow: 'hidden',
         ...style,
       }}
-      onClick={(e) => {
-        if (e.target === containerRef.current) textareaRef.current?.focus({ preventScroll: true })
-      }}
     >
-      <div style={{ height: totalHeight, position: 'relative' }}>
-        <canvas
-          ref={canvasRef}
-          style={{ position: 'sticky', top: 0, display: 'block', width: '100%' }}
+      <div
+        ref={containerRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflow: 'auto',
+          outline: 'none',
+          cursor: 'text',
+        }}
+        onClick={(e) => {
+          if (e.target === containerRef.current) textareaRef.current?.focus({ preventScroll: true })
+        }}
+      >
+        <div style={{ height: totalHeight, position: 'relative' }}>
+          <canvas
+            ref={canvasRef}
+            style={{ position: 'sticky', top: 0, display: 'block', width: '100%' }}
+          />
+        </div>
+
+        {state?.menuPos && (
+          <ContextMenu
+            x={state.menuPos.x}
+            y={state.menuPos.y}
+            items={state.menuItems}
+            onClose={() => ctrlRef.current?.closeMenu()}
+          />
+        )}
+
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: 1,
+            height: 1,
+            opacity: 0,
+            overflow: 'hidden',
+            resize: 'none',
+            border: 'none',
+            outline: 'none',
+            padding: 0,
+            pointerEvents: 'none',
+          }}
+          onKeyDown={(e) => ctrlRef.current?.onKeyDown(e.nativeEvent)}
+          onCompositionStart={() => ctrlRef.current?.onCompositionStart()}
+          onCompositionEnd={(e) => ctrlRef.current?.onCompositionEnd(e.nativeEvent)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
         />
       </div>
 
-      {state?.menuPos && (
-        <ContextMenu
-          x={state.menuPos.x}
-          y={state.menuPos.y}
-          items={state.menuItems}
-          onClose={() => ctrlRef.current?.closeMenu()}
-        />
-      )}
-
-      <textarea
-        ref={textareaRef}
-        rows={1}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: 1,
-          height: 1,
-          opacity: 0,
-          overflow: 'hidden',
-          resize: 'none',
-          border: 'none',
-          outline: 'none',
-          padding: 0,
-          pointerEvents: 'none',
-        }}
-        onKeyDown={(e) => ctrlRef.current?.onKeyDown(e.nativeEvent)}
-        onCompositionStart={() => ctrlRef.current?.onCompositionStart()}
-        onCompositionEnd={(e) => ctrlRef.current?.onCompositionEnd(e.nativeEvent)}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-      />
+      {searchNode}
     </div>
   )
 })

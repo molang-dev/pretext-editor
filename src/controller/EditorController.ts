@@ -1,5 +1,6 @@
 import { tokenize } from '../core/tokenizer'
 import type { TokenizedLine } from '../core/renderer'
+import { searchLines, INITIAL_SEARCH_STATE, type SearchState, type SearchMatch } from '../core/search'
 import {
   fromString,
   toString,
@@ -97,7 +98,11 @@ export interface EditorControllerState {
   tokenLines: TokenizedLine[] | undefined
   menuPos: { x: number; y: number } | null
   menuItems: ContextMenuItem[]
+  searchState: SearchState
 }
+
+export type { SearchState, SearchMatch } from '../core/search'
+export type { SearchActions } from '../core/search'
 
 export type PretextEditorHandle = {
   getTopLine(): number
@@ -166,6 +171,10 @@ export class EditorController {
   binding: IEditorBinding | undefined
   active: boolean
   contextMenuItemsFn: ((builtins: ContextMenuBuiltins) => ContextMenuItem[]) | undefined
+
+  // Search state (public so React wrapper can read via getState())
+  searchState: SearchState = { ...INITIAL_SEARCH_STATE }
+  private searchMatches: SearchMatch[] = []
 
   // Internal state
   private undoStack: Snapshot[] = []
@@ -326,6 +335,77 @@ export class EditorController {
       tokenLines: this.tokenLines,
       menuPos: this.menuPos,
       menuItems: this.menuItems,
+      searchState: this.searchState,
+    }
+  }
+
+  // ---- Search ----
+
+  openSearch(query?: string): void {
+    const sel = this.selAnchor && !isCollapsed({ anchor: this.selAnchor, head: this.doc.cursor })
+      ? getSelectedText(this.doc.lines, { anchor: this.selAnchor, head: this.doc.cursor })
+      : null
+    const q = query ?? sel ?? this.searchState.query
+    this.searchState = { ...this.searchState, isOpen: true, query: q }
+    this.recomputeSearch()
+    this.notifyAndRepaint()
+  }
+
+  closeSearch(): void {
+    this.searchState = { ...this.searchState, isOpen: false }
+    this.searchMatches = []
+    this.notifyAndRepaint()
+    requestAnimationFrame(() => this.textarea?.focus({ preventScroll: true }))
+  }
+
+  setSearchQuery(q: string): void {
+    this.searchState = { ...this.searchState, query: q }
+    this.recomputeSearch()
+    this.notifyAndRepaint()
+  }
+
+  searchNext(): void {
+    if (this.searchMatches.length === 0) return
+    const next = (this.searchState.currentIndex + 1) % this.searchMatches.length
+    this.searchState = { ...this.searchState, currentIndex: next }
+    this.selectAndScrollToMatch(next)
+    this.notifyAndRepaint()
+  }
+
+  searchPrev(): void {
+    if (this.searchMatches.length === 0) return
+    const prev = (this.searchState.currentIndex - 1 + this.searchMatches.length) % this.searchMatches.length
+    this.searchState = { ...this.searchState, currentIndex: prev }
+    this.selectAndScrollToMatch(prev)
+    this.notifyAndRepaint()
+  }
+
+  setSearchCaseSensitive(v: boolean): void {
+    this.searchState = { ...this.searchState, caseSensitive: v }
+    this.recomputeSearch()
+    this.notifyAndRepaint()
+  }
+
+  private recomputeSearch(): void {
+    this.searchMatches = searchLines(this.doc.lines, this.searchState.query, this.searchState.caseSensitive)
+    const count = this.searchMatches.length
+    const cur = count === 0 ? -1 : Math.min(this.searchState.currentIndex, count - 1)
+    const clamped = cur < 0 && count > 0 ? 0 : cur
+    this.searchState = { ...this.searchState, matchCount: count, currentIndex: clamped }
+    if (clamped >= 0) this.selectAndScrollToMatch(clamped)
+  }
+
+  private selectAndScrollToMatch(idx: number): void {
+    const match = this.searchMatches[idx]
+    if (!match) return
+    this.doc = { ...this.doc, cursor: match.head }
+    this.selAnchor = match.anchor
+    const container = this.container
+    if (container) {
+      const lh = this.lineHeight
+      const lineTop = PADDING_TOP + match.anchor.line * lh
+      if (lineTop < container.scrollTop) container.scrollTop = lineTop - lh
+      else if (lineTop + lh > container.scrollTop + container.clientHeight) container.scrollTop = lineTop - lh
     }
   }
 
@@ -397,11 +477,6 @@ export class EditorController {
     this.buildMenuItems()
     this.onStateChange?.()
     this.repaint()
-  }
-
-  private notifyState(): void {
-    this.buildMenuItems()
-    this.onStateChange?.()
   }
 
   // ---- Internal: Commit update with undo ----
@@ -545,6 +620,8 @@ export class EditorController {
       tabSize: this.tabSize,
       tokenLines: tokenLinesToRender,
       cursorVisible: this.cursorVisible,
+      searchHighlights: this.searchState.isOpen ? this.searchMatches : undefined,
+      searchCurrentIdx: this.searchState.currentIndex,
     })
   }
 
@@ -872,6 +949,11 @@ export class EditorController {
           }
           return
         }
+        case 'f': {
+          e.preventDefault()
+          this.openSearch()
+          return
+        }
         case 'l': {
           e.preventDefault()
           if (shift) {
@@ -966,6 +1048,11 @@ export class EditorController {
     // Navigation & editing (non-Ctrl)
     switch (e.key) {
       case 'Escape': {
+        if (this.searchState.isOpen) {
+          e.preventDefault()
+          this.closeSearch()
+          return
+        }
         if (this.extraCursors.length > 0) {
           e.preventDefault()
           this.extraCursors = []
