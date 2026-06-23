@@ -386,12 +386,26 @@ export class EditorController {
     this.notifyAndRepaint()
   }
 
+  setSearchWholeWord(v: boolean): void {
+    this.searchState = { ...this.searchState, wholeWord: v }
+    this.recomputeSearch()
+    this.notifyAndRepaint()
+  }
+
+  setSearchUseRegex(v: boolean): void {
+    this.searchState = { ...this.searchState, useRegex: v }
+    this.recomputeSearch()
+    this.notifyAndRepaint()
+  }
+
   private recomputeSearch(): void {
-    this.searchMatches = searchLines(this.doc.lines, this.searchState.query, this.searchState.caseSensitive)
-    const count = this.searchMatches.length
+    const { query, caseSensitive, wholeWord, useRegex } = this.searchState
+    const { matches, regexError } = searchLines(this.doc.lines, query, caseSensitive, wholeWord, useRegex)
+    this.searchMatches = matches
+    const count = matches.length
     const cur = count === 0 ? -1 : Math.min(this.searchState.currentIndex, count - 1)
     const clamped = cur < 0 && count > 0 ? 0 : cur
-    this.searchState = { ...this.searchState, matchCount: count, currentIndex: clamped }
+    this.searchState = { ...this.searchState, matchCount: count, currentIndex: clamped, regexError }
     if (clamped >= 0) this.selectAndScrollToMatch(clamped)
   }
 
