@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { SearchState, SearchActions } from '../core/search'
 import {
   arrowUpSvg, arrowDownSvg, caseSensitiveSvg, chevronDownSvg,
-  closeSvg, wholeWordSvg, regexSvg, replaceSvg, replaceAllSvg,
+  closeSvg, wholeWordSvg, regexSvg, replaceSvg, replaceAllSvg, preserveCaseSvg,
 } from '../icons'
 
 interface SearchBarProps {
@@ -246,16 +246,33 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
           {/* spacer aligns with find chevron */}
           <div style={{ width: 15, flexShrink: 0 }} />
 
-          {/* Replace input */}
-          <input
-            ref={replaceRef}
-            value={state.replaceQuery}
-            onChange={(e) => actions.setReplaceQuery(e.target.value)}
-            onKeyDown={handleReplaceKeyDown}
-            placeholder="Replace"
-            disabled={readOnly}
-            style={{ ...inputStyle, borderColor: '#555', opacity: readOnly ? 0.4 : 1 }}
-          />
+          {/* Replace input + Preserve Case toggle */}
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <input
+              ref={replaceRef}
+              value={state.replaceQuery}
+              onChange={(e) => actions.setReplaceQuery(e.target.value)}
+              onKeyDown={handleReplaceKeyDown}
+              placeholder="Replace"
+              disabled={readOnly}
+              style={{ ...inputStyle, paddingRight: 30, borderColor: '#555', opacity: readOnly ? 0.4 : 1 }}
+            />
+            <div style={{
+              position: 'absolute',
+              right: 3,
+              top: '50%',
+              transform: 'translateY(-50%)',
+            }}>
+              <IconBtn
+                title="Preserve Case (AB)"
+                active={state.preserveCase}
+                disabled={readOnly || state.useRegex}
+                onClick={() => actions.setPreserveCase(!state.preserveCase)}
+              >
+                <Svg html={preserveCaseSvg} />
+              </IconBtn>
+            </div>
+          </div>
 
           {/* Replace / Replace All */}
           <div style={{ display: 'flex', gap: 2 }}>
@@ -267,7 +284,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               <Svg html={replaceSvg} />
             </IconBtn>
             <IconBtn
-              title="Replace All"
+              title="Replace All (Ctrl+Alt+Enter)"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replaceAll}
             >

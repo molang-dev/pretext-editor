@@ -1,6 +1,6 @@
 import { tokenize } from '../core/tokenizer'
 import type { TokenizedLine } from '../core/renderer'
-import { buildSearchRegex, buildLineOffsets, fastOffsetToCursor, INITIAL_SEARCH_STATE, type SearchState, type SearchMatch } from '../core/search'
+import { buildSearchRegex, buildLineOffsets, fastOffsetToCursor, applyPreserveCase, INITIAL_SEARCH_STATE, type SearchState, type SearchMatch } from '../core/search'
 import {
   fromString,
   toString,
@@ -405,23 +405,28 @@ export class EditorController {
     this.notifyAndRepaint()
   }
 
+  setPreserveCase(v: boolean): void {
+    this.searchState = { ...this.searchState, preserveCase: v }
+    this.notifyAndRepaint()
+  }
+
   replace(): void {
     const idx = this.searchState.currentIndex
     const match = this.searchMatches[idx]
     if (!match || this.searchState.regexError) return
-    const { query, replaceQuery, caseSensitive, wholeWord, useRegex } = this.searchState
+    const { query, replaceQuery, caseSensitive, wholeWord, useRegex, preserveCase } = this.searchState
 
+    const matchedText = getSelectedText(this.doc.lines, { anchor: match.anchor, head: match.head })
     let replacement: string
     if (useRegex) {
       try {
         const flags = caseSensitive ? '' : 'i'
         const src = wholeWord ? `(?<![\\w])(?:${query})(?![\\w])` : query
         const re = new RegExp(src, flags)
-        const matched = getSelectedText(this.doc.lines, { anchor: match.anchor, head: match.head })
-        replacement = matched.replace(re, replaceQuery)
+        replacement = matchedText.replace(re, replaceQuery)
       } catch { return }
     } else {
-      replacement = replaceQuery
+      replacement = preserveCase ? applyPreserveCase(matchedText, replaceQuery) : replaceQuery
     }
 
     const sel = { anchor: match.anchor, head: match.head }
@@ -431,14 +436,16 @@ export class EditorController {
   }
 
   replaceAll(): void {
-    const { query, replaceQuery, caseSensitive, wholeWord, useRegex, regexError } = this.searchState
+    const { query, replaceQuery, caseSensitive, wholeWord, useRegex, regexError, preserveCase } = this.searchState
     if (!query || this.searchMatches.length === 0 || regexError) return
 
     const { pattern } = buildSearchRegex(query, caseSensitive, wholeWord, useRegex)
     if (!pattern) return
 
     const oldText = toString(this.doc)
-    const newText = oldText.replace(pattern, replaceQuery)
+    const newText = useRegex || !preserveCase
+      ? oldText.replace(pattern, replaceQuery)
+      : oldText.replace(pattern, (matched) => applyPreserveCase(matched, replaceQuery))
     if (newText === oldText) return
 
     this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })

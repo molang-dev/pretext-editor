@@ -129,6 +129,7 @@ export const PretextEditor = forwardRef<
     setUseRegex: (v) => ctrlRef.current?.setSearchUseRegex(v),
     toggleReplace: () => ctrlRef.current?.toggleReplace(),
     setReplaceQuery: (q) => ctrlRef.current?.setReplaceQuery(q),
+    setPreserveCase: (v) => ctrlRef.current?.setPreserveCase(v),
     replace: () => ctrlRef.current?.replace(),
     replaceAll: () => ctrlRef.current?.replaceAll(),
   }

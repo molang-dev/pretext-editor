@@ -11,6 +11,7 @@ export interface SearchState {
   regexError: string | null
   showReplace: boolean
   replaceQuery: string
+  preserveCase: boolean
 }
 
 export interface SearchActions {
@@ -21,6 +22,7 @@ export interface SearchActions {
   setCaseSensitive(v: boolean): void
   setWholeWord(v: boolean): void
   setUseRegex(v: boolean): void
+  setPreserveCase(v: boolean): void
   toggleReplace(): void
   setReplaceQuery(q: string): void
   replace(): void
@@ -40,6 +42,25 @@ export const INITIAL_SEARCH_STATE: SearchState = {
   regexError: null,
   showReplace: false,
   replaceQuery: '',
+  preserveCase: false,
+}
+
+/**
+ * Applies the case pattern of `matched` to `replacement`.
+ * Rules mirror VSCode: ALL CAPS → upper, all lower → lower,
+ * Title case → title, mixed (camel/pascal/etc.) → unchanged.
+ */
+export function applyPreserveCase(matched: string, replacement: string): string {
+  if (!matched || !replacement) return replacement
+  const hasUpper = matched !== matched.toLowerCase()
+  const hasLower = matched !== matched.toUpperCase()
+  if (hasUpper && !hasLower) return replacement.toUpperCase()
+  if (!hasUpper && hasLower) return replacement.toLowerCase()
+  // Title case: first char upper, rest lower
+  if (matched[0] === matched[0].toUpperCase() && matched.slice(1) === matched.slice(1).toLowerCase()) {
+    return replacement[0].toUpperCase() + replacement.slice(1).toLowerCase()
+  }
+  return replacement
 }
 
 /** Build a search RegExp from query options. Returns null pattern on empty query. */
