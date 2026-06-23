@@ -1,4 +1,14 @@
 import { defineConfig } from 'tsup'
+import type { Plugin } from 'esbuild'
+
+// Prevent esbuild from trying to resolve absolute icon URLs at build time.
+// These are served as static files at runtime by the consumer's dev server.
+const externalIconUrls: Plugin = {
+  name: 'external-icon-urls',
+  setup(build) {
+    build.onResolve({ filter: /^\/icons\// }, (args) => ({ path: args.path, external: true }))
+  },
+}
 
 export default defineConfig({
   entry: {
@@ -11,9 +21,7 @@ export default defineConfig({
   dts: true,
   splitting: false,
   clean: true,
-  esbuildOptions(options) {
-    options.loader = { ...options.loader, '.svg': 'dataurl' }
-  },
+  esbuildPlugins: [externalIconUrls],
   external: [
     'react',
     'react-dom',
