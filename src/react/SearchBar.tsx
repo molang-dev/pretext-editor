@@ -1,35 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { SearchState, SearchActions } from '../core/search'
-import {
-  arrowUpSvg, arrowDownSvg, caseSensitiveSvg, chevronDownSvg,
-  closeSvg, wholeWordSvg, regexSvg, replaceSvg, replaceAllSvg, preserveCaseSvg,
-} from '../icons'
+import '../icons/icons.css'
 
 interface SearchBarProps {
   state: SearchState
   actions: SearchActions
   /** When true, Replace and Replace All buttons are disabled */
   readOnly?: boolean
-}
-
-function Icon({ url, style }: { url: string; style?: React.CSSProperties }) {
-  return <span style={{
-    display: 'inline-block',
-    width: 16,
-    height: 16,
-    flexShrink: 0,
-    pointerEvents: 'none',
-    backgroundColor: 'currentColor',
-    WebkitMaskImage: `url(${url})`,
-    WebkitMaskRepeat: 'no-repeat',
-    WebkitMaskPosition: 'center',
-    WebkitMaskSize: 'contain',
-    maskImage: `url(${url})`,
-    maskRepeat: 'no-repeat',
-    maskPosition: 'center',
-    maskSize: 'contain',
-    ...style,
-  } as React.CSSProperties} />
 }
 
 function IconBtn({
@@ -187,7 +164,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
           onClick={actions.toggleReplace}
           width={15}
         >
-          <Icon url={chevronDownSvg} style={{
+          <span className="pteic pteic-chevron-down" style={{
             transform: state.showReplace ? 'none' : 'rotate(-90deg)',
             transition: 'transform 0.12s',
           }} />
@@ -215,15 +192,15 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
           }}>
             <IconBtn title="Match Case (Alt+C)" active={state.caseSensitive}
               onClick={() => actions.setCaseSensitive(!state.caseSensitive)}>
-              <Icon url={caseSensitiveSvg} />
+              <span className="pteic pteic-case-sensitive" />
             </IconBtn>
             <IconBtn title="Match Whole Word (Alt+W)" active={state.wholeWord}
               onClick={() => actions.setWholeWord(!state.wholeWord)}>
-              <Icon url={wholeWordSvg} />
+              <span className="pteic pteic-whole-word" />
             </IconBtn>
             <IconBtn title="Use Regular Expression (Alt+R)" active={state.useRegex}
               onClick={() => actions.setUseRegex(!state.useRegex)}>
-              <Icon url={regexSvg} />
+              <span className="pteic pteic-regex" />
             </IconBtn>
           </div>
         </div>
@@ -243,13 +220,13 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
         {/* Prev / Next / Close */}
         <div style={{ display: 'flex', gap: 2 }}>
           <IconBtn title="Previous Match (Shift+Enter)" disabled={state.matchCount === 0} onClick={actions.prev}>
-            <Icon url={arrowUpSvg} />
+            <span className="pteic pteic-arrow-up" />
           </IconBtn>
           <IconBtn title="Next Match (Enter)" disabled={state.matchCount === 0} onClick={actions.next}>
-            <Icon url={arrowDownSvg} />
+            <span className="pteic pteic-arrow-down" />
           </IconBtn>
           <IconBtn title="Close (Escape)" onClick={actions.close}>
-            <Icon url={closeSvg} />
+            <span className="pteic pteic-close" />
           </IconBtn>
         </div>
       </div>
@@ -283,7 +260,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
                 disabled={readOnly || state.useRegex}
                 onClick={() => actions.setPreserveCase(!state.preserveCase)}
               >
-                <Icon url={preserveCaseSvg} />
+                <span className="pteic pteic-preserve-case" />
               </IconBtn>
             </div>
           </div>
@@ -295,14 +272,14 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replace}
             >
-              <Icon url={replaceSvg} />
+              <span className="pteic pteic-replace" />
             </IconBtn>
             <IconBtn
               title="Replace All (Ctrl+Alt+Enter)"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replaceAll}
             >
-              <Icon url={replaceAllSvg} />
+              <span className="pteic pteic-replace-all" />
             </IconBtn>
           </div>
         </div>
