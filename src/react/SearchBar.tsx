@@ -4,6 +4,8 @@ import type { SearchState, SearchActions } from '../core/search'
 interface SearchBarProps {
   state: SearchState
   actions: SearchActions
+  /** When true, Replace and Replace All buttons are disabled */
+  readOnly?: boolean
 }
 
 function IconBtn({
@@ -12,12 +14,14 @@ function IconBtn({
   active,
   disabled,
   onClick,
+  width,
 }: {
   children: React.ReactNode
   title: string
   active?: boolean
   disabled?: boolean
   onClick: () => void
+  width?: number
 }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -28,15 +32,15 @@ function IconBtn({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        width: 24,
-        height: 24,
+        width: width ?? 26,
+        height: 26,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         border: 'none',
-        borderRadius: 3,
+        borderRadius: 4,
         background: active ? '#0e639c' : hovered && !disabled ? '#37373d' : 'transparent',
-        color: disabled ? '#5a5a5a' : '#cccccc',
+        color: disabled ? '#555' : '#cccccc',
         cursor: disabled ? 'default' : 'pointer',
         fontSize: 13,
         fontFamily: 'system-ui, sans-serif',
@@ -44,6 +48,7 @@ function IconBtn({
         flexShrink: 0,
         lineHeight: 1,
         outline: 'none',
+        whiteSpace: 'nowrap',
       }}
     >
       {children}
@@ -51,20 +56,21 @@ function IconBtn({
   )
 }
 
-export function SearchBar({ state, actions }: SearchBarProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
+export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
+  const findRef = useRef<HTMLInputElement>(null)
+  const replaceRef = useRef<HTMLInputElement>(null)
 
   // REVIEW: useEffect used because we need to imperatively focus the input when the bar opens
   useEffect(() => {
     if (state.isOpen) {
-      inputRef.current?.focus()
-      inputRef.current?.select()
+      findRef.current?.focus()
+      findRef.current?.select()
     }
   }, [state.isOpen])
 
   if (!state.isOpen) return null
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleFindKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       e.shiftKey ? actions.prev() : actions.next()
@@ -75,9 +81,20 @@ export function SearchBar({ state, actions }: SearchBarProps) {
     e.stopPropagation()
   }
 
+  const handleReplaceKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (!readOnly) e.shiftKey ? actions.replaceAll() : actions.replace()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      actions.close()
+    }
+    e.stopPropagation()
+  }
+
   const hasError = !!state.regexError
   const noMatches = !!state.query && !hasError && state.matchCount === 0
-  const inputBorderColor = hasError || noMatches ? '#f48771' : '#3c3c3c'
+  const inputBorderColor = hasError || noMatches ? '#f48771' : '#555'
 
   const countText = hasError
     ? ''
@@ -85,10 +102,27 @@ export function SearchBar({ state, actions }: SearchBarProps) {
       ? (state.query ? 'No results' : '')
       : `${state.currentIndex + 1} of ${state.matchCount}`
 
-  const countColor = hasError || noMatches ? '#f48771' : '#e0e0e0'
+  const countColor = hasError || noMatches ? '#f48771' : '#d4d4d4'
 
-  // 3 toggle buttons × 24px + 2px gaps + 4px right margin
-  const togglesWidth = 3 * 24 + 2 * 2 + 6
+  // 3 toggle buttons × 26px + 2px gaps × 2 + 4px right padding
+  const togglesWidth = 3 * 26 + 2 * 2 + 4
+
+  const inputStyle: React.CSSProperties = {
+    width: 240,
+    background: '#3c3c3c',
+    border: `1px solid #555`,
+    borderRadius: 3,
+    color: '#d4d4d4',
+    fontSize: 14,
+    paddingTop: 2,
+    paddingBottom: 2,
+    paddingLeft: 8,
+    paddingRight: 8,
+    outline: 'none',
+    fontFamily: 'inherit',
+    boxSizing: 'border-box',
+    height: 30,
+  }
 
   return (
     <div
@@ -99,44 +133,48 @@ export function SearchBar({ state, actions }: SearchBarProps) {
         zIndex: 100,
         background: '#252526',
         border: '1px solid #454545',
-        borderRadius: 5,
-        boxShadow: '0 3px 10px rgba(0,0,0,0.55)',
-        padding: '7px 8px',
+        borderRadius: 6,
+        boxShadow: '0 4px 14px rgba(0,0,0,0.6)',
+        padding: '6px 8px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 5,
+        gap: 4,
         fontFamily: 'system-ui, -apple-system, sans-serif',
         userSelect: 'none',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        {/* Input with toggle buttons embedded on the right */}
+      {/* ── Find row ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+
+        {/* Toggle replace chevron */}
+        <IconBtn
+          title={state.showReplace ? 'Collapse Replace' : 'Expand Replace'}
+          onClick={actions.toggleReplace}
+          width={22}
+        >
+          <span style={{
+            display: 'inline-block',
+            fontSize: 12,
+            transform: state.showReplace ? 'rotate(90deg)' : 'none',
+            transition: 'transform 0.12s',
+          }}>›</span>
+        </IconBtn>
+
+        {/* Find input + embedded toggles */}
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <input
-            ref={inputRef}
+            ref={findRef}
             value={state.query}
             onChange={(e) => actions.setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
+            onKeyDown={handleFindKeyDown}
             placeholder="Find"
             title={state.regexError ?? undefined}
             style={{
-              width: 220,
-              background: '#3c3c3c',
-              border: `1px solid ${inputBorderColor}`,
-              borderRadius: 3,
-              color: '#d4d4d4',
-              fontSize: 14,
-              paddingTop: 4,
-              paddingBottom: 4,
-              paddingLeft: 8,
+              ...inputStyle,
               paddingRight: togglesWidth,
-              outline: 'none',
-              fontFamily: 'inherit',
-              boxSizing: 'border-box',
-              height: 28,
+              borderColor: inputBorderColor,
             }}
           />
-          {/* Toggle buttons inside the input, right-aligned */}
           <div style={{
             position: 'absolute',
             right: 3,
@@ -146,35 +184,26 @@ export function SearchBar({ state, actions }: SearchBarProps) {
             gap: 2,
             alignItems: 'center',
           }}>
-            <IconBtn
-              title="Match Case (Alt+C)"
-              active={state.caseSensitive}
-              onClick={() => actions.setCaseSensitive(!state.caseSensitive)}
-            >
+            <IconBtn title="Match Case (Alt+C)" active={state.caseSensitive}
+              onClick={() => actions.setCaseSensitive(!state.caseSensitive)}>
               <span style={{ fontStyle: 'italic', fontWeight: 'bold', fontSize: 12, letterSpacing: '-0.5px' }}>Aa</span>
             </IconBtn>
-            <IconBtn
-              title="Match Whole Word (Alt+W)"
-              active={state.wholeWord}
-              onClick={() => actions.setWholeWord(!state.wholeWord)}
-            >
+            <IconBtn title="Match Whole Word (Alt+W)" active={state.wholeWord}
+              onClick={() => actions.setWholeWord(!state.wholeWord)}>
               <span style={{ fontFamily: 'monospace', textDecoration: 'underline', fontSize: 13 }}>W</span>
             </IconBtn>
-            <IconBtn
-              title="Use Regular Expression (Alt+R)"
-              active={state.useRegex}
-              onClick={() => actions.setUseRegex(!state.useRegex)}
-            >
+            <IconBtn title="Use Regular Expression (Alt+R)" active={state.useRegex}
+              onClick={() => actions.setUseRegex(!state.useRegex)}>
               <span style={{ fontFamily: 'monospace', fontSize: 12 }}>.*</span>
             </IconBtn>
           </div>
         </div>
 
-        {/* Match count */}
+        {/* Count */}
         <span style={{
           fontSize: 13,
           color: countColor,
-          minWidth: 72,
+          minWidth: 74,
           textAlign: 'center',
           flexShrink: 0,
           whiteSpace: 'nowrap',
@@ -184,31 +213,58 @@ export function SearchBar({ state, actions }: SearchBarProps) {
 
         {/* Prev / Next / Close */}
         <div style={{ display: 'flex', gap: 2 }}>
-          <IconBtn
-            title="Previous Match (Shift+Enter)"
-            disabled={state.matchCount === 0}
-            onClick={actions.prev}
-          >
-            ↑
-          </IconBtn>
-          <IconBtn
-            title="Next Match (Enter)"
-            disabled={state.matchCount === 0}
-            onClick={actions.next}
-          >
-            ↓
-          </IconBtn>
+          <IconBtn title="Previous Match (Shift+Enter)" disabled={state.matchCount === 0} onClick={actions.prev}>↑</IconBtn>
+          <IconBtn title="Next Match (Enter)" disabled={state.matchCount === 0} onClick={actions.next}>↓</IconBtn>
           <IconBtn title="Close (Escape)" onClick={actions.close}>✕</IconBtn>
         </div>
       </div>
 
-      {/* Regex error message */}
+      {/* ── Replace row ── */}
+      {state.showReplace && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          {/* spacer aligns with find chevron */}
+          <div style={{ width: 22, flexShrink: 0 }} />
+
+          {/* Replace input */}
+          <input
+            ref={replaceRef}
+            value={state.replaceQuery}
+            onChange={(e) => actions.setReplaceQuery(e.target.value)}
+            onKeyDown={handleReplaceKeyDown}
+            placeholder="Replace"
+            disabled={readOnly}
+            style={{ ...inputStyle, borderColor: '#555', opacity: readOnly ? 0.4 : 1 }}
+          />
+
+          {/* Replace / Replace All */}
+          <div style={{ display: 'flex', gap: 2 }}>
+            <IconBtn
+              title="Replace (Enter)"
+              disabled={readOnly || state.matchCount === 0 || !!state.regexError}
+              onClick={actions.replace}
+              width={26}
+            >
+              <span style={{ fontSize: 15 }}>⟳</span>
+            </IconBtn>
+            <IconBtn
+              title="Replace All"
+              disabled={readOnly || state.matchCount === 0 || !!state.regexError}
+              onClick={actions.replaceAll}
+              width={46}
+            >
+              <span style={{ fontSize: 12 }}>⟳ All</span>
+            </IconBtn>
+          </div>
+        </div>
+      )}
+
+      {/* ── Regex error ── */}
       {state.regexError && (
         <div style={{
           fontSize: 12,
           color: '#f48771',
-          padding: '0 2px',
-          maxWidth: 380,
+          paddingLeft: 27,
+          maxWidth: 420,
           overflow: 'hidden',
           textOverflow: 'ellipsis',
           whiteSpace: 'nowrap',

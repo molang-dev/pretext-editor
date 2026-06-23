@@ -9,6 +9,8 @@ export interface SearchState {
   currentIndex: number  // 0-based; -1 when no matches or query empty
   isOpen: boolean
   regexError: string | null
+  showReplace: boolean
+  replaceQuery: string
 }
 
 export interface SearchActions {
@@ -19,6 +21,10 @@ export interface SearchActions {
   setCaseSensitive(v: boolean): void
   setWholeWord(v: boolean): void
   setUseRegex(v: boolean): void
+  toggleReplace(): void
+  setReplaceQuery(q: string): void
+  replace(): void
+  replaceAll(): void
 }
 
 export type SearchMatch = { anchor: Cursor; head: Cursor }
@@ -32,6 +38,8 @@ export const INITIAL_SEARCH_STATE: SearchState = {
   currentIndex: -1,
   isOpen: false,
   regexError: null,
+  showReplace: false,
+  replaceQuery: '',
 }
 
 export function searchLines(
