@@ -1,6 +1,8 @@
 // Core: framework-agnostic — no React/Vue/Svelte imports
 export { EditorController } from './controller/EditorController'
 export type { EditorControllerState, EditorControllerOptions, CursorSlot } from './controller/EditorController'
+export { searchLines } from './core/search'
+export type { SearchState, SearchActions, SearchMatch } from './core/search'
 export type { PretextEditorProps, PretextEditorHandle, IEditorBinding, ContextMenuItem, ContextMenuBuiltins } from './controller/EditorController'
 export {
   fromString, toString, insert,

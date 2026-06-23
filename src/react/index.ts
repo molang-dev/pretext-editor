@@ -1,6 +1,7 @@
 // React entry — exports the PretextEditor React component
 export { PretextEditor } from './PretextEditor'
-export type { PretextEditorProps, PretextEditorHandle, IEditorBinding, ContextMenuItem, ContextMenuBuiltins } from './PretextEditor'
+export type { PretextEditorProps, PretextEditorHandle, IEditorBinding, ContextMenuItem, ContextMenuBuiltins, SearchState, SearchActions } from './PretextEditor'
+export { SearchBar } from './SearchBar'
 // Re-export core for convenience
 export { EditorController } from '../controller/EditorController'
 export type { EditorControllerState, EditorControllerOptions, CursorSlot } from '../controller/EditorController'

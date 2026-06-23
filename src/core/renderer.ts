@@ -1,5 +1,6 @@
 import type { Cursor, Selection } from './document'
 import { isCollapsed, normalizeSelection } from './document'
+import type { SearchMatch } from './search'
 
 export type TokenSpan = { text: string; color: string }
 export type TokenizedLine = TokenSpan[]
@@ -20,6 +21,8 @@ const CURRENT_LINE_BG = 'rgba(255,255,255,0.04)'
 const SELECTION_BG = '#264f78'
 const INDENT_GUIDE = 'rgba(255,255,255,0.1)'
 const INDENT_GUIDE_ACTIVE = 'rgba(255,255,255,0.3)'
+const SEARCH_MATCH_BG = 'rgba(220,200,60,0.28)'
+const SEARCH_CURRENT_BG = 'rgba(255,140,0,0.5)'
 
 export interface RenderOptions {
   canvas: HTMLCanvasElement
@@ -33,6 +36,8 @@ export interface RenderOptions {
   tabSize?: number
   tokenLines?: TokenizedLine[]
   cursorVisible?: boolean
+  searchHighlights?: SearchMatch[]
+  searchCurrentIdx?: number
 }
 
 /** Count leading-whitespace depth in spaces (tabs expand to tabSize) */
@@ -163,6 +168,8 @@ export function renderCanvas({
   tabSize = DEFAULT_TAB_SIZE,
   tokenLines,
   cursorVisible = true,
+  searchHighlights,
+  searchCurrentIdx = -1,
 }: RenderOptions): void {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
@@ -199,6 +206,21 @@ export function renderCanvas({
     if (i === cursor.line && !hasSel) {
       ctx.fillStyle = CURRENT_LINE_BG
       ctx.fillRect(0, y, w, lineHeight)
+    }
+
+    // Search match highlights (drawn under selection)
+    if (searchHighlights) {
+      ctx.font = font
+      for (let mi = 0; mi < searchHighlights.length; mi++) {
+        const m = searchHighlights[mi]
+        if (i < m.anchor.line || i > m.head.line) continue
+        const colS = i === m.anchor.line ? m.anchor.col : 0
+        const colE = i === m.head.line ? m.head.col : lineText.length
+        const xS = PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
+        const xE = PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
+        ctx.fillStyle = mi === searchCurrentIdx ? SEARCH_CURRENT_BG : SEARCH_MATCH_BG
+        ctx.fillRect(xS, y, Math.max(xE - xS, 2), lineHeight)
+      }
     }
 
     // Indent guides — draw at every level strictly contained by this line's indent.
