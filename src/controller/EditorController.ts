@@ -347,7 +347,7 @@ export class EditorController {
       ? getSelectedText(this.doc.lines, { anchor: this.selAnchor, head: this.doc.cursor })
       : null
     const q = query ?? sel ?? this.searchState.query
-    this.searchState = { ...this.searchState, isOpen: true, query: q }
+    this.searchState = { ...this.searchState, isOpen: true, query: q, focusToken: this.searchState.focusToken + 1 }
     this.scheduleSearch()
   }
 

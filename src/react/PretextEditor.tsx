@@ -124,7 +124,10 @@ export const PretextEditor = forwardRef<
     setQuery: (q) => ctrlRef.current?.setSearchQuery(q),
     next: () => ctrlRef.current?.searchNext(),
     prev: () => ctrlRef.current?.searchPrev(),
-    close: () => ctrlRef.current?.closeSearch(),
+    close: () => {
+      ctrlRef.current?.closeSearch()
+      textareaRef.current?.focus({ preventScroll: true })
+    },
     setCaseSensitive: (v) => ctrlRef.current?.setSearchCaseSensitive(v),
     setWholeWord: (v) => ctrlRef.current?.setSearchWholeWord(v),
     setUseRegex: (v) => ctrlRef.current?.setSearchUseRegex(v),

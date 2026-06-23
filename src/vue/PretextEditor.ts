@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, onMounted, onBeforeUnmount, watch, reactive, computed, type SetupContext } from 'vue'
+import { defineComponent, h, ref, onMounted, onBeforeUnmount, watch, reactive, computed, type SetupContext, type PropType } from 'vue'
 import { EditorController } from '../controller/EditorController'
 import {
   FONT_SIZE_TO_LINE_HEIGHT,
@@ -6,19 +6,40 @@ import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_TAB_SIZE,
 } from '../core/renderer'
-import type { EditorControllerState, PretextEditorHandle, IEditorBinding, ContextMenuBuiltins, ContextMenuItem } from '../controller/EditorController'
+import type {
+  EditorControllerState,
+  PretextEditorHandle,
+  IEditorBinding,
+  ContextMenuBuiltins,
+  ContextMenuItem,
+} from '../controller/EditorController'
+import type { SearchState, SearchActions } from '../core/search'
 
-const ctxMenuStyle: Record<string, string> = {
-  position: 'fixed',
-  background: '#252526',
-  border: '1px solid #454545',
-  borderRadius: '8px',
-  padding: '4px 0',
-  zIndex: '9999',
-  minWidth: '160px',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
-  userSelect: 'none',
+// Shared CSS — tsup bundles these into dist/vue/index.css
+import '../icons/icons.css'
+import '../react/pretext-editor.css'
+import '../react/context-menu.css'
+import '../react/search-bar.css'
+
+// ---- Search bar icon helpers (h()-based) ----
+
+function IconSpan(icon: string) {
+  return h('span', { class: `pteic pteic-${icon}` })
 }
+
+function IconBtn(
+  props: { title: string; active?: boolean; disabled?: boolean; narrow?: boolean; onClick: () => void },
+  children: any,
+) {
+  return h('button', {
+    title: props.title,
+    disabled: props.disabled,
+    onClick: props.onClick,
+    class: `pteic-btn${props.narrow ? ' pteic-btn--narrow' : ''}${props.active ? ' pteic-btn--active' : ''}`,
+  }, children)
+}
+
+// ---- Component ----
 
 export const PretextEditor = defineComponent({
   name: 'PretextEditor',
@@ -28,9 +49,10 @@ export const PretextEditor = defineComponent({
     fontSize: { type: Number, default: DEFAULT_FONT_SIZE },
     fontFamily: { type: String, default: DEFAULT_FONT_FAMILY },
     tabSize: { type: Number, default: DEFAULT_TAB_SIZE },
-    binding: { type: Object as () => import('../controller/EditorController').IEditorBinding | undefined, default: undefined },
+    binding: { type: Object as () => IEditorBinding | undefined, default: undefined },
     active: { type: Boolean, default: false },
-    contextMenuItems: { type: Function, default: undefined },
+    contextMenuItems: { type: Function as PropType<(builtins: ContextMenuBuiltins) => ContextMenuItem[]>, default: undefined },
+    renderSearchBar: { type: Function as PropType<(state: SearchState, actions: SearchActions) => any>, default: undefined },
   },
   emits: ['update:value'],
   setup(
@@ -43,12 +65,15 @@ export const PretextEditor = defineComponent({
       binding?: IEditorBinding
       active: boolean
       contextMenuItems?: (builtins: ContextMenuBuiltins) => ContextMenuItem[]
+      renderSearchBar?: (state: SearchState, actions: SearchActions) => any
     },
     { emit, expose }: SetupContext<{ 'update:value': (value: string) => void }>,
   ) {
     const containerRef = ref<HTMLDivElement>()
     const canvasRef = ref<HTMLCanvasElement>()
     const textareaRef = ref<HTMLTextAreaElement>()
+    const findRef = ref<HTMLInputElement>()
+    const replaceRef = ref<HTMLInputElement>()
     let ctrl: EditorController | null = null
 
     const state = reactive<EditorControllerState>({
@@ -58,7 +83,12 @@ export const PretextEditor = defineComponent({
       tokenLines: undefined,
       menuPos: null,
       menuItems: [],
-      searchState: { query: '', caseSensitive: false, wholeWord: false, useRegex: false, matchCount: 0, currentIndex: -1, isOpen: false, regexError: null, showReplace: false, replaceQuery: '', preserveCase: false },
+      searchState: {
+        query: '', caseSensitive: false, wholeWord: false, useRegex: false,
+        matchCount: 0, currentIndex: -1, isOpen: false, regexError: null,
+        showReplace: false, replaceQuery: '', preserveCase: false,
+        focusToken: 0,
+      },
     })
 
     const lineHeight = computed(() => FONT_SIZE_TO_LINE_HEIGHT(props.fontSize))
@@ -67,6 +97,27 @@ export const PretextEditor = defineComponent({
     const onStateChange = () => {
       const s = ctrl!.getState()
       Object.assign(state, s)
+      // Focus find input when search bar opens
+      if (s.searchState.isOpen && !state.searchState.isOpen === false) {
+        // search was just opened — handled by the next tick watcher
+      }
+    }
+
+    // ---- Search actions (delegate to controller) ----
+
+    const searchActions: SearchActions = {
+      setQuery: (q) => ctrl?.setSearchQuery(q),
+      next: () => ctrl?.searchNext(),
+      prev: () => ctrl?.searchPrev(),
+      close: () => ctrl?.closeSearch(),
+      setCaseSensitive: (v) => ctrl?.setSearchCaseSensitive(v),
+      setWholeWord: (v) => ctrl?.setSearchWholeWord(v),
+      setUseRegex: (v) => ctrl?.setSearchUseRegex(v),
+      toggleReplace: () => ctrl?.toggleReplace(),
+      setReplaceQuery: (q) => ctrl?.setReplaceQuery(q),
+      setPreserveCase: (v) => ctrl?.setPreserveCase(v),
+      replace: () => ctrl?.replace(),
+      replaceAll: () => ctrl?.replaceAll(),
     }
 
     onMounted(() => {
@@ -91,7 +142,34 @@ export const PretextEditor = defineComponent({
 
     watch(() => props.value, (v: string) => ctrl?.setValue(v))
     watch([() => props.language, () => props.fontSize, () => props.fontFamily, () => props.tabSize], () => {
-      ctrl?.updateOptions({ language: props.language, fontSize: props.fontSize, fontFamily: props.fontFamily, tabSize: props.tabSize })
+      ctrl?.updateOptions({
+        language: props.language,
+        fontSize: props.fontSize,
+        fontFamily: props.fontFamily,
+        tabSize: props.tabSize,
+      })
+    })
+
+    // Auto-focus find input when search opens, return focus when it closes
+    watch(() => state.searchState.isOpen, (open, wasOpen) => {
+      if (open) {
+        requestAnimationFrame(() => {
+          findRef.value?.focus()
+          findRef.value?.select()
+        })
+      } else if (wasOpen) {
+        textareaRef.value?.focus({ preventScroll: true })
+      }
+    })
+
+    // Re-focus find input when Ctrl+F re-triggers while search is already open
+    watch(() => state.searchState.focusToken, () => {
+      if (state.searchState.isOpen) {
+        requestAnimationFrame(() => {
+          findRef.value?.focus()
+          findRef.value?.select()
+        })
+      }
     })
 
     const onKeyDown = (e: KeyboardEvent) => ctrl?.onKeyDown(e)
@@ -107,15 +185,66 @@ export const PretextEditor = defineComponent({
       getVisibleLines: () => ctrl?.getHandle().getVisibleLines() ?? { from: 0, to: 0 },
     } satisfies PretextEditorHandle)
 
+    // ---- Search bar keyboard handlers ----
+
+    function handleFindKeyDown(e: KeyboardEvent) {
+      // Block browser Ctrl+F / Cmd+F when search input is focused
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); return }
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const k = e.key.toLowerCase()
+        if (k === 'c') { e.preventDefault(); searchActions.setCaseSensitive(!state.searchState.caseSensitive); return }
+        if (k === 'w') { e.preventDefault(); searchActions.setWholeWord(!state.searchState.wholeWord); return }
+        if (k === 'r') { e.preventDefault(); searchActions.setUseRegex(!state.searchState.useRegex); return }
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        e.shiftKey ? searchActions.prev() : searchActions.next()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        searchActions.close()
+        textareaRef.value?.focus({ preventScroll: true })
+      }
+      e.stopPropagation()
+    }
+
+    function handleReplaceKeyDown(e: KeyboardEvent) {
+      // Block browser Ctrl+F / Cmd+F when search input is focused
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') { e.preventDefault(); return }
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        const k = e.key.toLowerCase()
+        if (k === 'c') { e.preventDefault(); searchActions.setCaseSensitive(!state.searchState.caseSensitive); return }
+        if (k === 'w') { e.preventDefault(); searchActions.setWholeWord(!state.searchState.wholeWord); return }
+        if (k === 'r') { e.preventDefault(); searchActions.setUseRegex(!state.searchState.useRegex); return }
+      }
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.key === 'Enter') {
+        e.preventDefault()
+        searchActions.replaceAll()
+      } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        searchActions.replace()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        searchActions.close()
+        textareaRef.value?.focus({ preventScroll: true })
+      }
+      e.stopPropagation()
+    }
+
+    // ---- Render ----
+
     return () => {
+      const ss = state.searchState
+      const hasError = !!ss.regexError
+      const noMatches = !!ss.query && !hasError && ss.matchCount === 0
+      const countText = hasError
+        ? ''
+        : ss.matchCount === 0
+          ? (ss.query ? 'No results' : '')
+          : `${ss.currentIndex + 1} of ${ss.matchCount > 999 ? '999+' : ss.matchCount}`
+
       const children: any[] = [
-        h('div', {
-          style: { height: totalHeight.value + 'px', position: 'relative' },
-        }, [
-          h('canvas', {
-            ref: canvasRef,
-            style: { position: 'sticky', top: '0', display: 'block', width: '100%' },
-          }),
+        h('div', { class: 'pteic-editor-content', style: { height: totalHeight.value + 'px' } }, [
+          h('canvas', { ref: canvasRef, class: 'pteic-editor-canvas' }),
         ]),
       ]
 
@@ -123,16 +252,11 @@ export const PretextEditor = defineComponent({
       if (state.menuPos) {
         children.push(
           h('div', {
-            style: {
-              ...ctxMenuStyle,
-              left: state.menuPos.x + 'px',
-              top: state.menuPos.y + 'px',
-            },
+            class: 'pteic-cm',
+            style: { left: state.menuPos.x + 'px', top: state.menuPos.y + 'px' },
           }, state.menuItems.map((item: ContextMenuItem) => {
             if (item.separator) {
-              return h('div', {
-                style: { height: '1px', background: '#454545', margin: '4px 0' },
-              })
+              return h('div', { class: 'pteic-cm-separator' })
             }
             return h('div', {
               onClick: () => {
@@ -142,13 +266,7 @@ export const PretextEditor = defineComponent({
                 }
               },
               key: item.label,
-              style: {
-                padding: '5px 20px',
-                fontSize: '13px',
-                color: item.disabled ? '#5a5a5a' : '#cccccc',
-                cursor: item.disabled ? 'default' : 'pointer',
-                background: 'transparent',
-              },
+              class: `pteic-cm-item${item.disabled ? ' pteic-cm-item--disabled' : ''}`,
             }, item.label)
           })),
         )
@@ -159,11 +277,7 @@ export const PretextEditor = defineComponent({
         h('textarea', {
           ref: textareaRef,
           rows: 1,
-          style: {
-            position: 'absolute', top: '0', left: '0', width: '1px', height: '1px',
-            opacity: '0', overflow: 'hidden', resize: 'none', border: 'none',
-            outline: 'none', padding: '0', pointerEvents: 'none',
-          },
+          class: 'pteic-editor-textarea',
           autocomplete: 'off',
           autocorrect: 'off',
           autocapitalize: 'off',
@@ -174,14 +288,95 @@ export const PretextEditor = defineComponent({
         }),
       )
 
-      return h('div', {
-        ref: containerRef,
-        style: {
-          position: 'relative', overflow: 'auto', height: '100%', width: '100%',
-          outline: 'none', cursor: 'text',
-        },
-        onClick: onContainerClick,
-      }, children)
+      // Search bar
+      const searchNode = ss.isOpen
+        ? (props.renderSearchBar
+          ? props.renderSearchBar(ss, searchActions)
+          : h('div', { class: 'pteic-sb' }, [
+            // ---- Find row ----
+            h('div', { class: 'pteic-sb-row' }, [
+              IconBtn({
+                title: ss.showReplace ? 'Collapse Replace' : 'Expand Replace',
+                narrow: true,
+                onClick: searchActions.toggleReplace,
+              }, [
+                IconSpan(`chevron-down${ss.showReplace ? '' : ' pteic-chevron-down--collapsed'}`),
+              ]),
+
+              h('div', { class: 'pteic-sb-input-wrap' }, [
+                h('input', {
+                  ref: findRef,
+                  value: ss.query,
+                  onInput: (e: Event) => searchActions.setQuery((e.target as HTMLInputElement).value),
+                  onKeydown: handleFindKeyDown,
+                  placeholder: 'Find',
+                  title: ss.regexError ?? undefined,
+                  class: `pteic-sb-input pteic-sb-find-input${noMatches ? ' pteic-sb-input--no-matches' : ''}${hasError ? ' pteic-sb-input--error' : ''}`,
+                }),
+                h('div', { class: 'pteic-sb-toggles' }, [
+                  IconBtn({ title: 'Match Case (Alt+C)', active: ss.caseSensitive, onClick: () => searchActions.setCaseSensitive(!ss.caseSensitive) }, [IconSpan('case-sensitive')]),
+                  IconBtn({ title: 'Match Whole Word (Alt+W)', active: ss.wholeWord, onClick: () => searchActions.setWholeWord(!ss.wholeWord) }, [IconSpan('whole-word')]),
+                  IconBtn({ title: 'Use Regular Expression (Alt+R)', active: ss.useRegex, onClick: () => searchActions.setUseRegex(!ss.useRegex) }, [IconSpan('regex')]),
+                ]),
+              ]),
+
+              h('span', { class: `pteic-sb-count${hasError || noMatches ? ' pteic-sb-count--error' : ''}` }, countText),
+
+              h('div', { class: 'pteic-sb-btns' }, [
+                IconBtn({ title: 'Previous Match (Shift+Enter)', disabled: ss.matchCount === 0, onClick: searchActions.prev }, [IconSpan('arrow-up')]),
+                IconBtn({ title: 'Next Match (Enter)', disabled: ss.matchCount === 0, onClick: searchActions.next }, [IconSpan('arrow-down')]),
+                IconBtn({ title: 'Close (Escape)', onClick: searchActions.close }, [IconSpan('close')]),
+              ]),
+            ]),
+
+            // ---- Replace row ----
+            ss.showReplace && h('div', { class: 'pteic-sb-row' }, [
+              h('div', { class: 'pteic-sb-spacer' }),
+              h('div', { class: 'pteic-sb-input-wrap' }, [
+                h('input', {
+                  ref: replaceRef,
+                  value: ss.replaceQuery,
+                  onInput: (e: Event) => searchActions.setReplaceQuery((e.target as HTMLInputElement).value),
+                  onKeydown: handleReplaceKeyDown,
+                  placeholder: 'Replace',
+                  class: `pteic-sb-input pteic-sb-replace-input${noMatches ? ' pteic-sb-input--no-matches' : ''}`,
+                }),
+                h('div', { class: 'pteic-sb-overlay' }, [
+                  IconBtn({
+                    title: 'Preserve Case (AB)',
+                    active: ss.preserveCase,
+                    disabled: ss.useRegex,
+                    onClick: () => searchActions.setPreserveCase(!ss.preserveCase),
+                  }, [IconSpan('preserve-case')]),
+                ]),
+              ]),
+              h('div', { class: 'pteic-sb-btns' }, [
+                IconBtn({
+                  title: 'Replace (Enter)',
+                  disabled: ss.matchCount === 0 || !!ss.regexError,
+                  onClick: searchActions.replace,
+                }, [IconSpan('replace')]),
+                IconBtn({
+                  title: 'Replace All (Ctrl+Alt+Enter)',
+                  disabled: ss.matchCount === 0 || !!ss.regexError,
+                  onClick: searchActions.replaceAll,
+                }, [IconSpan('replace-all')]),
+              ]),
+            ]),
+
+            // ---- Regex error ----
+            ss.regexError && h('div', { class: 'pteic-sb-error' }, ss.regexError),
+          ]))
+        : null
+
+      return h('div', { class: 'pteic-editor-root' }, [
+        h('div', {
+          ref: containerRef,
+          class: 'pteic-editor-scroll',
+          onClick: onContainerClick,
+        }, children),
+        searchNode,
+      ])
     }
   },
 })

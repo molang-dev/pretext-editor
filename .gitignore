@@ -8,3 +8,4 @@ build/
 .claude/
 CLAUDE.md
 .angular/
+demo/***/*.svg

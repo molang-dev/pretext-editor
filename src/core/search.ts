@@ -12,6 +12,8 @@ export interface SearchState {
   showReplace: boolean
   replaceQuery: string
   preserveCase: boolean
+  /** Incremented each time openSearch() is called; components watch this to re-focus the find input. */
+  focusToken: number
 }
 
 export interface SearchActions {
@@ -43,6 +45,7 @@ export const INITIAL_SEARCH_STATE: SearchState = {
   showReplace: false,
   replaceQuery: '',
   preserveCase: false,
+  focusToken: 0,
 }
 
 /**
