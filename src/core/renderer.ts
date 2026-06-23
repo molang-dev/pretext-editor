@@ -198,6 +198,30 @@ export function renderCanvas({
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
 
+  // Clip search highlights to the visible line range using binary search.
+  // Matches are sorted by anchor.line (regex exec is left-to-right), so we can
+  // find the sub-array that overlaps [firstLine, lastLine] in O(log n).
+  let hiStart = 0
+  let hiEnd = 0
+  if (searchHighlights && searchHighlights.length > 0) {
+    // First match whose head.line >= firstLine
+    let lo = 0, hi = searchHighlights.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (searchHighlights[mid].head.line < firstLine) lo = mid + 1
+      else hi = mid
+    }
+    hiStart = lo
+    // First match whose anchor.line > lastLine
+    lo = hiStart; hi = searchHighlights.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (searchHighlights[mid].anchor.line <= lastLine) lo = mid + 1
+      else hi = mid
+    }
+    hiEnd = lo
+  }
+
   for (let i = firstLine; i <= lastLine; i++) {
     const y = PADDING_TOP + i * lineHeight - scrollTop
     const lineText = lines[i] ?? ''
@@ -209,9 +233,9 @@ export function renderCanvas({
     }
 
     // Search match highlights (drawn under selection)
-    if (searchHighlights) {
+    if (searchHighlights && hiStart < hiEnd) {
       ctx.font = font
-      for (let mi = 0; mi < searchHighlights.length; mi++) {
+      for (let mi = hiStart; mi < hiEnd; mi++) {
         const m = searchHighlights[mi]
         if (i < m.anchor.line || i > m.head.line) continue
         const colS = i === m.anchor.line ? m.anchor.col : 0

@@ -42,6 +42,50 @@ export const INITIAL_SEARCH_STATE: SearchState = {
   replaceQuery: '',
 }
 
+/** Build a search RegExp from query options. Returns null pattern on empty query. */
+export function buildSearchRegex(
+  query: string,
+  caseSensitive: boolean,
+  wholeWord: boolean,
+  useRegex: boolean,
+): { pattern: RegExp | null; regexError: string | null } {
+  if (!query) return { pattern: null, regexError: null }
+  try {
+    const flags = caseSensitive ? 'g' : 'gi'
+    let src: string
+    if (useRegex) {
+      src = wholeWord ? `(?<![\\w])(?:${query})(?![\\w])` : query
+    } else {
+      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      src = wholeWord ? `\\b${escaped}\\b` : escaped
+    }
+    return { pattern: new RegExp(src, flags), regexError: null }
+  } catch (e) {
+    return { pattern: null, regexError: (e as Error).message }
+  }
+}
+
+/** Precompute the character offset of each line's start (including the '\n' separator). */
+export function buildLineOffsets(lines: string[]): number[] {
+  const offsets = new Array<number>(lines.length)
+  offsets[0] = 0
+  for (let i = 1; i < lines.length; i++) {
+    offsets[i] = offsets[i - 1] + lines[i - 1].length + 1
+  }
+  return offsets
+}
+
+/** Binary-search version of offsetToCursor — O(log n) instead of O(n). */
+export function fastOffsetToCursor(lineOffsets: number[], lines: string[], offset: number): Cursor {
+  let lo = 0, hi = lineOffsets.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1
+    if (lineOffsets[mid] <= offset) lo = mid
+    else hi = mid - 1
+  }
+  return { line: lo, col: offset - lineOffsets[lo] }
+}
+
 export function searchLines(
   lines: string[],
   query: string,
@@ -49,43 +93,20 @@ export function searchLines(
   wholeWord: boolean,
   useRegex: boolean,
 ): { matches: SearchMatch[]; regexError: string | null } {
-  if (!query) return { matches: [], regexError: null }
-
-  let pattern: RegExp
-  try {
-    const flags = caseSensitive ? 'g' : 'gi'
-    if (useRegex) {
-      const src = wholeWord ? `(?<![\\w])(?:${query})(?![\\w])` : query
-      pattern = new RegExp(src, flags)
-    } else {
-      const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-      const src = wholeWord ? `\\b${escaped}\\b` : escaped
-      pattern = new RegExp(src, flags)
-    }
-  } catch (e) {
-    return { matches: [], regexError: (e as Error).message }
-  }
+  const { pattern, regexError } = buildSearchRegex(query, caseSensitive, wholeWord, useRegex)
+  if (regexError) return { matches: [], regexError }
+  if (!pattern) return { matches: [], regexError: null }
 
   const text = lines.join('\n')
+  const lineOffsets = buildLineOffsets(lines)
   const results: SearchMatch[] = []
   let m: RegExpExecArray | null
   while ((m = pattern.exec(text)) !== null) {
     if (m[0].length === 0) { pattern.lastIndex++; continue }
     results.push({
-      anchor: offsetToCursor(lines, m.index),
-      head: offsetToCursor(lines, m.index + m[0].length),
+      anchor: fastOffsetToCursor(lineOffsets, lines, m.index),
+      head: fastOffsetToCursor(lineOffsets, lines, m.index + m[0].length),
     })
   }
   return { matches: results, regexError: null }
-}
-
-function offsetToCursor(lines: string[], offset: number): Cursor {
-  let rem = offset
-  for (let i = 0; i < lines.length; i++) {
-    const len = lines[i].length + 1  // +1 for '\n'
-    if (rem < len) return { line: i, col: rem }
-    rem -= len
-  }
-  const last = lines.length - 1
-  return { line: last, col: lines[last]?.length ?? 0 }
 }
