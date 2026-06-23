@@ -135,7 +135,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
         border: '1px solid #454545',
         borderRadius: 6,
         boxShadow: '0 4px 14px rgba(0,0,0,0.6)',
-        padding: '6px 8px',
+        padding: 2,
         display: 'flex',
         flexDirection: 'column',
         gap: 4,
@@ -150,7 +150,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
         <IconBtn
           title={state.showReplace ? 'Collapse Replace' : 'Expand Replace'}
           onClick={actions.toggleReplace}
-          width={22}
+          width={15}
         >
           <span style={{
             display: 'inline-block',
@@ -223,7 +223,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
       {state.showReplace && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           {/* spacer aligns with find chevron */}
-          <div style={{ width: 22, flexShrink: 0 }} />
+          <div style={{ width: 15, flexShrink: 0 }} />
 
           {/* Replace input */}
           <input
