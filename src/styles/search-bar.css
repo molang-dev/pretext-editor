@@ -29,7 +29,7 @@
 .pteic-sb-input {
   width: 240px;
   background: #3c3c3c;
-  border: 1px solid #555;
+  border: 1px solid transparent;
   border-radius: 3px;
   color: #d4d4d4;
   font-size: 14px;
@@ -38,6 +38,10 @@
   font-family: inherit;
   box-sizing: border-box;
   height: 30px;
+}
+
+.pteic-sb-input:focus {
+  border-color: #0e639c;
 }
 
 /* 3 toggle buttons: 3×26 + 2×2 gaps + 4 right clearance = 86px */
@@ -50,13 +54,7 @@
   padding-right: 30px;
 }
 
-.pteic-sb-input--no-matches {
-  background: rgba(228, 86, 73, 0.18);
-}
 
-.pteic-sb-input--error {
-  border-color: #f48771;
-}
 
 .pteic-sb-input--readonly {
   opacity: 0.4;
