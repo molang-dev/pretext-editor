@@ -28,6 +28,7 @@
   let containerEl: HTMLDivElement;
   let canvasEl: HTMLCanvasElement;
   let textareaEl: HTMLTextAreaElement;
+  let ctxMenuEl: HTMLDivElement;
   let findInputEl: HTMLInputElement;
   let replaceInputEl: HTMLInputElement;
 
@@ -99,6 +100,12 @@
     replaceAll: () => ctrl.replaceAll(),
   };
 
+  function onWindowPointerDown(e: PointerEvent) {
+    if (ctxMenuEl && !ctxMenuEl.contains(e.target as Node)) {
+      ctrl?.closeMenu();
+    }
+  }
+
   onMount(() => {
     ctrl = new EditorController({
       value,
@@ -114,9 +121,11 @@
       contextMenuItems,
     });
     ctrl.mount(containerEl, canvasEl, textareaEl, onStateChange);
+    window.addEventListener('pointerdown', onWindowPointerDown, { capture: true });
   });
 
   onDestroy(() => {
+    window.removeEventListener('pointerdown', onWindowPointerDown, { capture: true });
     ctrl?.destroy();
   });
 
@@ -235,6 +244,7 @@
 
     {#if menuPos}
       <div
+        bind:this={ctxMenuEl}
         class="pteic-cm"
         style="left:{menuPos.x}px; top:{menuPos.y}px"
       >
