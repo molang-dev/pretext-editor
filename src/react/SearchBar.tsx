@@ -120,7 +120,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
             onKeyDown={handleFindKeyDown}
             placeholder="Find"
             title={state.regexError ?? undefined}
-            className={`pteic-sb-input pteic-sb-find-input${noMatches ? ' pteic-sb-input--no-matches' : ''}${hasError ? ' pteic-sb-input--error' : ''}`}
+            className={`pteic-sb-input pteic-sb-find-input${hasError ? ' pteic-sb-input--error' : ''}`}
           />
           <div className="pteic-sb-toggles">
             <IconBtn title="Match Case (Alt+C)" active={state.caseSensitive}
@@ -168,7 +168,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               onKeyDown={handleReplaceKeyDown}
               placeholder="Replace"
               disabled={readOnly}
-              className={`pteic-sb-input pteic-sb-replace-input${noMatches ? ' pteic-sb-input--no-matches' : ''}${readOnly ? ' pteic-sb-input--readonly' : ''}`}
+              className={`pteic-sb-input pteic-sb-replace-input${readOnly ? ' pteic-sb-input--readonly' : ''}`}
             />
             <div className="pteic-sb-overlay">
               <IconBtn
