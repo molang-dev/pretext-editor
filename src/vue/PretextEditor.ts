@@ -72,9 +72,17 @@ export const PretextEditor = defineComponent({
     const containerRef = ref<HTMLDivElement>()
     const canvasRef = ref<HTMLCanvasElement>()
     const textareaRef = ref<HTMLTextAreaElement>()
+    const ctxMenuRef = ref<HTMLDivElement>()
     const findRef = ref<HTMLInputElement>()
     const replaceRef = ref<HTMLInputElement>()
     let ctrl: EditorController | null = null
+
+    // Close context menu when clicking outside
+    const onWindowPointerDown = (e: PointerEvent) => {
+      if (ctxMenuRef.value && !ctxMenuRef.value.contains(e.target as Node)) {
+        ctrl?.closeMenu()
+      }
+    }
 
     const state = reactive<EditorControllerState>({
       doc: { lines: [], cursor: { line: 0, col: 0 } },
@@ -133,9 +141,11 @@ export const PretextEditor = defineComponent({
         contextMenuItems: props.contextMenuItems as any,
       })
       ctrl.mount(containerRef.value!, canvasRef.value!, textareaRef.value!, onStateChange)
+      window.addEventListener('pointerdown', onWindowPointerDown, { capture: true })
     })
 
     onBeforeUnmount(() => {
+      window.removeEventListener('pointerdown', onWindowPointerDown, { capture: true })
       ctrl?.destroy()
       ctrl = null
     })
@@ -252,6 +262,7 @@ export const PretextEditor = defineComponent({
       if (state.menuPos) {
         children.push(
           h('div', {
+            ref: ctxMenuRef,
             class: 'pteic-cm',
             style: { left: state.menuPos.x + 'px', top: state.menuPos.y + 'px' },
           }, state.menuItems.map((item: ContextMenuItem) => {
