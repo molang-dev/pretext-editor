@@ -9,7 +9,7 @@ import {
 } from 'react'
 import { ContextMenu } from './ContextMenu'
 import { SearchBar } from './SearchBar'
-import './pretext-editor.css'
+import '../styles/editor.css'
 import { EditorController } from '../controller/EditorController'
 import type { EditorControllerState } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'

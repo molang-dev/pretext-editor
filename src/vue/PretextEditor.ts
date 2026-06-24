@@ -16,10 +16,10 @@ import type {
 import type { SearchState, SearchActions } from '../core/search'
 
 // Shared CSS — tsup bundles these into dist/vue/index.css
-import '../icons/icons.css'
-import '../react/pretext-editor.css'
-import '../react/context-menu.css'
-import '../react/search-bar.css'
+import '../styles/icons.css'
+import '../styles/editor.css'
+import '../styles/context-menu.css'
+import '../styles/search-bar.css'
 
 // ---- Search bar icon helpers (h()-based) ----
 

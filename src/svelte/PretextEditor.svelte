@@ -430,52 +430,52 @@
     mask-size: contain;
   }
   :global(.pteic.pteic-arrow-down) {
-    -webkit-mask-image: url('/icons/arrow-down.svg');
-    mask-image: url('/icons/arrow-down.svg');
+    -webkit-mask-image: url('../icons/arrow-down.svg');
+    mask-image: url('../icons/arrow-down.svg');
   }
   :global(.pteic.pteic-arrow-up) {
-    -webkit-mask-image: url('/icons/arrow-up.svg');
-    mask-image: url('/icons/arrow-up.svg');
+    -webkit-mask-image: url('../icons/arrow-up.svg');
+    mask-image: url('../icons/arrow-up.svg');
   }
   :global(.pteic.pteic-case-sensitive) {
-    -webkit-mask-image: url('/icons/case-sensitive.svg');
-    mask-image: url('/icons/case-sensitive.svg');
+    -webkit-mask-image: url('../icons/case-sensitive.svg');
+    mask-image: url('../icons/case-sensitive.svg');
   }
   :global(.pteic.pteic-chevron-down) {
-    -webkit-mask-image: url('/icons/chevron-down.svg');
-    mask-image: url('/icons/chevron-down.svg');
+    -webkit-mask-image: url('../icons/chevron-down.svg');
+    mask-image: url('../icons/chevron-down.svg');
   }
   :global(.pteic.pteic-close) {
-    -webkit-mask-image: url('/icons/close.svg');
-    mask-image: url('/icons/close.svg');
+    -webkit-mask-image: url('../icons/close.svg');
+    mask-image: url('../icons/close.svg');
   }
   :global(.pteic.pteic-preserve-case) {
-    -webkit-mask-image: url('/icons/preserve-case.svg');
-    mask-image: url('/icons/preserve-case.svg');
+    -webkit-mask-image: url('../icons/preserve-case.svg');
+    mask-image: url('../icons/preserve-case.svg');
   }
   :global(.pteic.pteic-regex) {
-    -webkit-mask-image: url('/icons/regex.svg');
-    mask-image: url('/icons/regex.svg');
+    -webkit-mask-image: url('../icons/regex.svg');
+    mask-image: url('../icons/regex.svg');
   }
   :global(.pteic.pteic-replace-all) {
-    -webkit-mask-image: url('/icons/replace-all.svg');
-    mask-image: url('/icons/replace-all.svg');
+    -webkit-mask-image: url('../icons/replace-all.svg');
+    mask-image: url('../icons/replace-all.svg');
   }
   :global(.pteic.pteic-replace) {
-    -webkit-mask-image: url('/icons/replace.svg');
-    mask-image: url('/icons/replace.svg');
+    -webkit-mask-image: url('../icons/replace.svg');
+    mask-image: url('../icons/replace.svg');
   }
   :global(.pteic.pteic-text-size) {
-    -webkit-mask-image: url('/icons/text-size.svg');
-    mask-image: url('/icons/text-size.svg');
+    -webkit-mask-image: url('../icons/text-size.svg');
+    mask-image: url('../icons/text-size.svg');
   }
   :global(.pteic.pteic-whole-word) {
-    -webkit-mask-image: url('/icons/whole-word.svg');
-    mask-image: url('/icons/whole-word.svg');
+    -webkit-mask-image: url('../icons/whole-word.svg');
+    mask-image: url('../icons/whole-word.svg');
   }
   :global(.pteic.pteic-word-wrap) {
-    -webkit-mask-image: url('/icons/word-wrap.svg');
-    mask-image: url('/icons/word-wrap.svg');
+    -webkit-mask-image: url('../icons/word-wrap.svg');
+    mask-image: url('../icons/word-wrap.svg');
   }
 
   /* ── Editor shell (global) ── */

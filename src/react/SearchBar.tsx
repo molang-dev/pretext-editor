@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import type { SearchState, SearchActions } from '../core/search'
-import '../icons/icons.css'
-import './search-bar.css'
+import '../styles/icons.css'
+import '../styles/search-bar.css'
 
 interface SearchBarProps {
   state: SearchState

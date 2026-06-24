@@ -25,30 +25,15 @@ npm install pretext-editor
 
 ## CSS 与图标
 
-编辑器需要配套 CSS 才能正常渲染（搜索栏、右键菜单、图标等）。各框架导入路径：
+React / Vue 入口已通过 side-effect import 自动加载 CSS，无需手动导入。Svelte 组件 CSS 内嵌。Angular / 纯 HTML5 需手动链接 CSS 文件：
 
-```ts
-// React
-import 'pretext-editor/react/index.css'
-
-// Vue
-import 'pretext-editor/vue/index.css'
-
-// Svelte — CSS is embedded in the component, no import needed
-
-// Angular / Vanilla HTML
-// Copy node_modules/pretext-editor/dist/react/index.css into your project and link it
+```html
+<!-- Angular: angular.json → styles: ["node_modules/pretext-editor/dist/react/index.css"] -->
+<!-- Vanilla HTML: -->
+<link rel="stylesheet" href="node_modules/pretext-editor/dist/react/index.css" />
 ```
 
-此外，图标 SVG 文件需要部署到服务器的 `/icons/` 路径下。将 `node_modules/pretext-editor/dist/icons/` 复制到项目的静态资源目录：
-
-```
-public/icons/         # Vite / Angular
-├── arrow-down.svg
-├── arrow-up.svg
-├── case-sensitive.svg
-├── ... (12 个文件)
-```
+图标 SVG 通过 CSS `url('./xxx.svg')` 相对路径引用，打包工具（esbuild / Vite / webpack）自动解析并输出到 CSS 同目录，无需手动复制。
 
 ## 快速开始
 
