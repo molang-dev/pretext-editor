@@ -1,14 +1,5 @@
 import { defineConfig } from 'tsup'
-import type { Plugin } from 'esbuild'
-
-// Prevent esbuild from trying to resolve absolute icon URLs at build time.
-// These are served as static files at runtime by the consumer's dev server.
-const externalIconUrls: Plugin = {
-  name: 'external-icon-urls',
-  setup(build) {
-    build.onResolve({ filter: /^\/icons\// }, (args) => ({ path: args.path, external: true }))
-  },
-}
+import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync } from 'fs'
 
 export default defineConfig({
   entry: {
@@ -21,7 +12,6 @@ export default defineConfig({
   dts: true,
   splitting: false,
   clean: true,
-  esbuildPlugins: [externalIconUrls],
   external: [
     'react',
     'react-dom',
@@ -33,17 +23,32 @@ export default defineConfig({
     'shiki',
     'shiki/engine/javascript',
   ],
-  // Copy framework source files so consumers' compilers can process them.
-  // - Svelte: .svelte file compiled by consumer's Svelte compiler
-  // - Angular: .ts with decorators needs Angular compiler; shipped as reference only
-  onSuccess:
-    'mkdir -p dist/svelte dist/controller dist/core dist/angular dist/icons && ' +
-    'cp src/svelte/PretextEditor.svelte dist/svelte/ && ' +
-    'cp src/angular/editor.component.ts dist/angular/ && ' +
-    'cp src/controller/EditorController.ts dist/controller/ && ' +
-    'cp src/core/document.ts dist/core/ && ' +
-    'cp src/core/renderer.ts dist/core/ && ' +
-    'cp src/core/tokenizer.ts dist/core/ && ' +
-    'cp src/core/search.ts dist/core/ && ' +
-    'cp src/icons/*.svg dist/icons/',
+
+  // Post-build: copy source files and inject CSS references
+  onSuccess: async () => {
+    // Copy framework source files so consumers' compilers can process them.
+    mkdirSync('dist/svelte', { recursive: true })
+    mkdirSync('dist/controller', { recursive: true })
+    mkdirSync('dist/core', { recursive: true })
+    mkdirSync('dist/angular', { recursive: true })
+    mkdirSync('dist/icons', { recursive: true })
+
+    cpSync('src/svelte/PretextEditor.svelte', 'dist/svelte/PretextEditor.svelte')
+    cpSync('src/angular/editor.component.ts', 'dist/angular/editor.component.ts')
+    cpSync('src/controller/EditorController.ts', 'dist/controller/EditorController.ts')
+    cpSync('src/core/document.ts', 'dist/core/document.ts')
+    cpSync('src/core/renderer.ts', 'dist/core/renderer.ts')
+    cpSync('src/core/tokenizer.ts', 'dist/core/tokenizer.ts')
+    cpSync('src/core/search.ts', 'dist/core/search.ts')
+    for (const f of readdirSync('src/icons')) {
+      if (f.endsWith('.svg')) cpSync(`src/icons/${f}`, `dist/icons/${f}`)
+    }
+
+    // Inject CSS import into ESM output so consumer bundlers (Vite/webpack)
+    // pick up the CSS automatically without manual import.
+    for (const pkg of ['react', 'vue']) {
+      const f = `dist/${pkg}/index.js`
+      writeFileSync(f, `import './index.css';\n${readFileSync(f, 'utf-8')}`)
+    }
+  },
 })

@@ -1,3 +1,9 @@
+// CSS side-effect imports — consumer bundlers pick these up automatically
+import '../styles/icons.css'
+import '../styles/editor.css'
+import '../styles/context-menu.css'
+import '../styles/search-bar.css'
+
 // React entry — exports the PretextEditor React component
 export { PretextEditor } from './PretextEditor'
 export type { PretextEditorProps, PretextEditorHandle, IEditorBinding, ContextMenuItem, ContextMenuBuiltins, SearchState, SearchActions } from './PretextEditor'

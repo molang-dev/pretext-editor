@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { ContextMenuItem } from './PretextEditor'
-import './context-menu.css'
+import '../styles/context-menu.css'
 
 interface Props {
   x: number
