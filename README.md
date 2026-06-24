@@ -23,18 +23,6 @@
 npm install pretext-editor
 ```
 
-## CSS 与图标
-
-React / Vue 入口已通过 side-effect import 自动加载 CSS，无需手动导入。Svelte 组件 CSS 内嵌。Angular / 纯 HTML5 需手动链接 CSS 文件：
-
-```html
-<!-- Angular: angular.json → styles: ["node_modules/pretext-editor/dist/react/index.css"] -->
-<!-- Vanilla HTML: -->
-<link rel="stylesheet" href="node_modules/pretext-editor/dist/react/index.css" />
-```
-
-图标 SVG 通过 CSS `url('./xxx.svg')` 相对路径引用，打包工具（esbuild / Vite / webpack）自动解析并输出到 CSS 同目录，无需手动复制。
-
 ## 快速开始
 
 ### React
@@ -126,7 +114,7 @@ export class AppComponent implements AfterViewInit {
 
 ### Svelte
 
-```svelte
+```ts
 <script lang="ts">
   import PretextEditor from 'pretext-editor/svelte'
 
