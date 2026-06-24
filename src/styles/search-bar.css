@@ -116,10 +116,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: none;
+  border: 1px solid transparent;
+  box-sizing: border-box;
   border-radius: 4px;
   background: transparent;
-  color: #cccccc;
+  color: #dddddd;
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
@@ -131,7 +132,13 @@
 }
 
 .pteic-btn.pteic-btn--active {
-  background: #0e639c;
+  background: rgba(18, 136, 214, 0.4);
+  border-color: #088fe9;
+  color: #fff;
+}
+
+.pteic-btn.pteic-btn--active:hover:not(:disabled) {
+  background: rgba(14, 99, 156, 0.4);
 }
 
 .pteic-btn:disabled {

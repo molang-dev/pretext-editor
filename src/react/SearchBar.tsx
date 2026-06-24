@@ -174,7 +174,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               <IconBtn
                 title="Preserve Case (AB)"
                 active={state.preserveCase}
-                disabled={readOnly || state.useRegex}
+                disabled={readOnly}
                 onClick={() => actions.setPreserveCase(!state.preserveCase)}
               >
                 <span className="pteic pteic-preserve-case" />
