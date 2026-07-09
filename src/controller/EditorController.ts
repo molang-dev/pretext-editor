@@ -314,6 +314,7 @@ export class EditorController {
   }
 
   updateOptions(options: Partial<EditorControllerOptions>): void {
+    const langChanged = options.language !== undefined && options.language !== this.language
     if (options.language !== undefined) this.language = options.language
     if (options.fontSize !== undefined) this.fontSize = options.fontSize
     if (options.fontFamily !== undefined) this.fontFamily = options.fontFamily
@@ -326,6 +327,7 @@ export class EditorController {
       }
     }
     if (options.contextMenuItems !== undefined) this.contextMenuItemsFn = options.contextMenuItems
+    if (langChanged) this.scheduleTokenize()
   }
 
   getState(): EditorControllerState {
@@ -581,6 +583,7 @@ export class EditorController {
       const sel = this.getActiveSel()
       const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
       this.commitUpdate(insert(base, text), null)
+      requestAnimationFrame(() => this.scrollCursorIntoView())
     }).catch(() => {})
   }
 
@@ -616,6 +619,7 @@ export class EditorController {
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
+    if (this.language) this.scheduleTokenize()
     this.notifyAndRepaint()
   }
 
@@ -804,7 +808,7 @@ export class EditorController {
         this.tokenLines = tokens
         this.notifyAndRepaint()
       }).catch(() => {})
-    }, 300)
+    }, 0)
   }
 
   // ---- Internal: Auto-scroll cursor into view ----
@@ -1024,6 +1028,7 @@ export class EditorController {
             const sel = this.getActiveSel()
             const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
             this.commitUpdate(insert(base, text), null)
+            requestAnimationFrame(() => this.scrollCursorIntoView())
           }).catch(() => {})
           return
         }
