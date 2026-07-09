@@ -22,6 +22,8 @@ export default defineConfig({
     '@chenglou/pretext',
     'shiki',
     'shiki/engine/javascript',
+    '@shikijs/primitive',
+    '@shikijs/vscode-textmate',
   ],
 
   // Post-build: copy source files and inject CSS references

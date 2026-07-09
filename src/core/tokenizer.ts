@@ -1,100 +1,78 @@
-import { createHighlighter, type Highlighter, type GrammarState, type ThemedToken } from 'shiki'
+import { Registry, Resolver, normalizeTheme } from '@shikijs/primitive'
+import { EncodedTokenMetadata, INITIAL, type IGrammar, type StateStack } from '@shikijs/vscode-textmate'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
-import type { BundledLanguage } from 'shiki'
+import { bundledLanguages, bundledThemes } from 'shiki'
+import type { LanguageRegistration } from 'shiki'
 import type { TokenizedLine } from './renderer'
 
 const THEME = 'dark-plus'
 const DEFAULT_FG = '#d4d4d4'
 
-let _hlPromise: Promise<Highlighter> | null = null
-const loadedLangs = new Set<string>()
-
 const jsEngine = createJavaScriptRegexEngine()
 
-function getHighlighter(): Promise<Highlighter> {
-  if (!_hlPromise) {
-    _hlPromise = createHighlighter({ themes: [THEME], langs: [], engine: jsEngine })
-  }
-  return _hlPromise
-}
-
-async function ensureLang(hl: Highlighter, lang: string): Promise<boolean> {
-  if (loadedLangs.has(lang)) return true
-  try {
-    await hl.loadLanguage(lang as unknown as BundledLanguage)
-    loadedLangs.add(lang)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function toTokenizedLine(line: ThemedToken[]): TokenizedLine {
-  return line.map(t => ({ text: t.content, color: t.color ?? DEFAULT_FG }))
-}
-
 export class IncrementalTokenizer {
-  private hl: Highlighter | null = null
-  private lang: string = ''
-  private lineEndStates: (GrammarState | null)[] = []
+  private grammar: IGrammar | null = null
+  private colorMap: string[] = []
+  private lineEndStacks: (StateStack | null)[] = []
   tokenLines: TokenizedLine[] = []
 
   async setLang(lang: string): Promise<void> {
-    const hl = await getHighlighter()
-    const ok = await ensureLang(hl, lang)
-    if (!ok) return
-    this.hl = hl
-    this.lang = lang
-    this.lineEndStates = []
+    const langGetter = bundledLanguages[lang as keyof typeof bundledLanguages]
+    if (!langGetter) return
+
+    const [langMod, themeMod] = await Promise.all([langGetter(), bundledThemes[THEME]()])
+    const langs = (Array.isArray(langMod.default) ? langMod.default : [langMod.default]) as LanguageRegistration[]
+    const theme = normalizeTheme(themeMod.default)
+
+    const registry = new Registry(new Resolver(jsEngine, langs), [theme], langs)
+    registry.setTheme(theme)
+    this.colorMap = registry.getColorMap()
+    this.grammar = (registry.getGrammar(lang) ?? null) as IGrammar | null
+    this.lineEndStacks = []
     this.tokenLines = []
   }
 
-  // Tokenize lines starting from fromLine.
-  // Stops early when the grammar state converges with the cached state.
-  // Returns true if any tokenLines were updated.
   tokenizeFrom(lines: string[], fromLine: number): boolean {
-    const hl = this.hl
-    if (!hl || !this.lang) return false
+    const grammar = this.grammar
+    if (!grammar) return false
 
-    // Resize arrays to match current line count
     const len = lines.length
     if (this.tokenLines.length !== len) {
       this.tokenLines.length = len
-      this.lineEndStates.length = len
+      this.lineEndStacks.length = len
     }
 
-    let state: GrammarState | null = fromLine > 0 ? (this.lineEndStates[fromLine - 1] ?? null) : null
+    let stack: StateStack = fromLine > 0 ? (this.lineEndStacks[fromLine - 1] ?? INITIAL) : INITIAL
     let changed = false
 
     for (let i = fromLine; i < len; i++) {
-      const tokens = hl.codeToTokensBase(lines[i], {
-        lang: this.lang as unknown as BundledLanguage,
-        theme: THEME,
-        grammarState: state ?? undefined,
-      })
+      const result = grammar.tokenizeLine2(lines[i], stack)
+      const rawTokens = result.tokens
+      const n = rawTokens.length / 2
+      const tokenLine: TokenizedLine = []
 
-      const newTokenLine = toTokenizedLine(tokens[0] ?? [])
-      const newState = hl.getLastGrammarState(tokens) ?? null
+      for (let j = 0; j < n; j++) {
+        const start = rawTokens[2 * j]
+        const end = j + 1 < n ? rawTokens[2 * j + 2] : lines[i].length
+        if (start === end) continue
+        const fg = EncodedTokenMetadata.getForeground(rawTokens[2 * j + 1])
+        tokenLine.push({ text: lines[i].slice(start, end), color: this.colorMap[fg] ?? DEFAULT_FG })
+      }
 
-      this.tokenLines[i] = newTokenLine
+      this.tokenLines[i] = tokenLine
       changed = true
 
-      const oldState = this.lineEndStates[i]
-      this.lineEndStates[i] = newState
-      state = newState
+      const newStack = result.ruleStack
+      const oldStack = this.lineEndStacks[i]
+      this.lineEndStacks[i] = newStack
+      stack = newStack
 
-      // Stop when grammar state converges (lines beyond are unaffected)
-      if (i > fromLine && oldState && newState) {
-        const oldStack = oldState.getInternalStack()
-        const newStack = newState.getInternalStack()
-        if (oldStack && newStack && (oldStack as any).equals(newStack)) break
-      }
+      if (i > fromLine && oldStack && newStack.equals(oldStack)) break
     }
 
     return changed
   }
 
-  // Find first line that differs between old and new lines arrays
   static firstChangedLine(oldLines: string[], newLines: string[]): number {
     const len = Math.min(oldLines.length, newLines.length)
     for (let i = 0; i < len; i++) {
@@ -103,13 +81,12 @@ export class IncrementalTokenizer {
     return len
   }
 
-  // Adjust state array when lines are inserted or deleted at a position
   adjustForLineDelta(atLine: number, delta: number): void {
     if (delta > 0) {
-      this.lineEndStates.splice(atLine, 0, ...new Array(delta).fill(null))
+      this.lineEndStacks.splice(atLine, 0, ...new Array(delta).fill(null))
       this.tokenLines.splice(atLine, 0, ...new Array(delta).fill([]))
     } else if (delta < 0) {
-      this.lineEndStates.splice(atLine, -delta)
+      this.lineEndStacks.splice(atLine, -delta)
       this.tokenLines.splice(atLine, -delta)
     }
   }
