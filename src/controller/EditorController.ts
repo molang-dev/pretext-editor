@@ -1,4 +1,4 @@
-import { tokenize } from '../core/tokenizer'
+import { IncrementalTokenizer } from '../core/tokenizer'
 import type { TokenizedLine } from '../core/renderer'
 import { buildSearchRegex, buildLineOffsets, fastOffsetToCursor, applyPreserveCase, INITIAL_SEARCH_STATE, type SearchState, type SearchMatch } from '../core/search'
 import {
@@ -116,7 +116,6 @@ type Snapshot = { doc: Doc; selAnchor: Cursor | null; extraCursors: CursorSlot[]
 
 // ---- Helpers ----
 
-const globalTokenCache = new Map<string, TokenizedLine[]>()
 
 const LINE_COMMENT: Record<string, string> = {
   typescript: '//', tsx: '//', javascript: '//', jsx: '//',
@@ -159,6 +158,7 @@ export class EditorController {
   selAnchor: Cursor | null = null
   extraCursors: CursorSlot[] = []
   tokenLines: TokenizedLine[] | undefined = undefined
+  private tokenizer = new IncrementalTokenizer()
   menuPos: { x: number; y: number } | null = null
   menuItems: ContextMenuItem[] = []
 
@@ -190,7 +190,6 @@ export class EditorController {
   private lastExternalValue: string
   private tokenLinesPatch: TokenizedLine[] | null = null
   private resizeObserver: ResizeObserver | null = null
-  private tokenizeTimer: ReturnType<typeof setTimeout> | null = null
 
   // DOM refs
   private container: HTMLDivElement | null = null
@@ -276,7 +275,12 @@ export class EditorController {
 
     // Tokenization
     if (this.language) {
-      this.scheduleTokenize()
+      this.tokenizer.setLang(this.language).then(() => {
+        if (this.tokenizer.tokenizeFrom(this.doc.lines, 0)) {
+          this.tokenLines = this.tokenizer.tokenLines.slice()
+          this.notifyAndRepaint()
+        }
+      })
     }
 
     // Initial repaint
@@ -285,7 +289,6 @@ export class EditorController {
 
   destroy(): void {
     if (this.blinkTimer) { clearInterval(this.blinkTimer); this.blinkTimer = null }
-    if (this.tokenizeTimer) { clearTimeout(this.tokenizeTimer); this.tokenizeTimer = null }
     this.resizeObserver?.disconnect()
     this.canvas?.removeEventListener('pointerdown', this.onPointerDown)
     this.canvas?.removeEventListener('pointermove', this.onPointerMove)
@@ -327,7 +330,15 @@ export class EditorController {
       }
     }
     if (options.contextMenuItems !== undefined) this.contextMenuItemsFn = options.contextMenuItems
-    if (langChanged) this.scheduleTokenize()
+    if (langChanged && this.language) {
+      this.tokenLines = undefined
+      this.tokenizer.setLang(this.language).then(() => {
+        if (this.tokenizer.tokenizeFrom(this.doc.lines, 0)) {
+          this.tokenLines = this.tokenizer.tokenLines.slice()
+          this.notifyAndRepaint()
+        }
+      })
+    }
   }
 
   getState(): EditorControllerState {
@@ -612,14 +623,24 @@ export class EditorController {
   private commitUpdate(newDoc: Doc, newAnchor: Cursor | null, newExtra: CursorSlot[] = []): void {
     this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
     if (this.undoStack.length > 200) this.undoStack.shift()
-    this.redoStack = []
+
+    if (this.language && this.tokenizer) {
+      const oldLines = this.doc.lines
+      const newLines = newDoc.lines
+      const fromLine = IncrementalTokenizer.firstChangedLine(oldLines, newLines)
+      const delta = newLines.length - oldLines.length
+      if (delta !== 0) this.tokenizer.adjustForLineDelta(fromLine, delta)
+      if (this.tokenizer.tokenizeFrom(newLines, fromLine)) {
+        this.tokenLines = this.tokenizer.tokenLines.slice()
+      }
+    }
+
     this.doc = newDoc
     this.selAnchor = newAnchor
     this.extraCursors = newExtra
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
-    if (this.language) this.scheduleTokenize()
     this.notifyAndRepaint()
   }
 
@@ -786,29 +807,6 @@ export class EditorController {
     this.menuItems = this.contextMenuItemsFn
       ? this.contextMenuItemsFn(builtins)
       : [builtins.copy, builtins.cut, builtins.paste, { label: '', onClick: () => {}, separator: true }, builtins.selectAll]
-  }
-
-  // ---- Internal: Tokenization ----
-
-  private scheduleTokenize(): void {
-    if (this.tokenizeTimer) clearTimeout(this.tokenizeTimer)
-    // Debounce tokenization to avoid excessive calls during rapid typing
-    this.tokenizeTimer = setTimeout(() => {
-      if (!this.language) return
-      const text = toString(this.doc)
-      const key = `${this.language}::${text}`
-      const cached = globalTokenCache.get(key)
-      if (cached) {
-        this.tokenLines = cached
-        this.notifyAndRepaint()
-        return
-      }
-      tokenize(text, this.language).then(tokens => {
-        globalTokenCache.set(key, tokens)
-        this.tokenLines = tokens
-        this.notifyAndRepaint()
-      }).catch(() => {})
-    }, 0)
   }
 
   // ---- Internal: Auto-scroll cursor into view ----
