@@ -338,7 +338,7 @@ export function renderCanvas({
       const xEnd =
         i === selEnd.line
           ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
-          : w
+          : gutterWidth + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
 
       ctx.fillStyle = tc.selectionBg
       ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
@@ -355,7 +355,7 @@ export function renderCanvas({
       const xEnd =
         i === exE.line
           ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
-          : w
+          : gutterWidth + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
       ctx.fillStyle = tc.selectionBg
       ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
     }

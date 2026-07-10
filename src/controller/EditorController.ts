@@ -871,6 +871,7 @@ export class EditorController {
     this.updateContentHeight()
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
+    console.log(`[repaint] selAnchor=${JSON.stringify(this.selAnchor)} cursor=${JSON.stringify(this.doc.cursor)} sel=${JSON.stringify(sel)}`)
     const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
     this.tokenLinesPatch = null
 
@@ -1045,6 +1046,7 @@ export class EditorController {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!(e.buttons & 1)) return
+    console.log(`[drag] buttons=${e.buttons} dragAnchor=${JSON.stringify(this.dragAnchor)} columnDrag=${this.columnDrag !== null}`)
     if (this.columnDrag !== null) {
       const pos = this.cursorFromPointer(e)
       const { anchorLine, anchorCol } = this.columnDrag
@@ -1055,6 +1057,7 @@ export class EditorController {
     const newHead = this.cursorFromPointer(e)
     this.selAnchor = this.dragAnchor
     this.doc = { ...this.doc, cursor: newHead }
+    console.log(`[drag] newHead=${JSON.stringify(newHead)} selAnchor=${JSON.stringify(this.selAnchor)}`)
     this.notifyAndRepaint()
     this.lastDragEvent = e
     this.updateAutoScroll(e)
