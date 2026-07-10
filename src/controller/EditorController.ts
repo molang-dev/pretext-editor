@@ -193,6 +193,7 @@ export class EditorController {
   private resizeObserver: ResizeObserver | null = null
   private tokenEpoch = 0
   private workerReady = false
+  private gutterWidth = PADDING_LEFT
 
   // DOM refs
   private container: HTMLDivElement | null = null
@@ -823,7 +824,7 @@ export class EditorController {
     const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
     this.tokenLinesPatch = null
 
-    renderCanvas({
+    this.gutterWidth = renderCanvas({
       canvas,
       lines: this.doc.lines,
       cursor: this.doc.cursor,
@@ -837,7 +838,7 @@ export class EditorController {
       cursorVisible: this.cursorVisible,
       searchHighlights: this.searchState.isOpen ? this.searchMatches : undefined,
       searchCurrentIdx: this.searchState.currentIndex,
-    })
+    }).gutterWidth
   }
 
   // ---- Internal: Cursor from pointer ----
@@ -853,7 +854,7 @@ export class EditorController {
       0,
       Math.min(this.doc.lines.length - 1, Math.floor((cssY - PADDING_TOP) / this.lineHeight)),
     )
-    const textX = cssX - (PADDING_LEFT + 4)
+    const textX = cssX - this.gutterWidth
     const col =
       textX <= 0 ? 0 : colFromX(ctx, this.doc.lines[line] ?? '', textX, this.fontSize, this.fontFamily, this.tabSize)
     return { line, col }

@@ -170,9 +170,9 @@ export function renderCanvas({
   cursorVisible = true,
   searchHighlights,
   searchCurrentIdx = -1,
-}: RenderOptions): void {
+}: RenderOptions): { gutterWidth: number } {
   const ctx = canvas.getContext('2d')
-  if (!ctx) return
+  if (!ctx) return { gutterWidth: PADDING_LEFT }
 
   const dpr = window.devicePixelRatio || 1
   const w = canvas.width / dpr
@@ -192,6 +192,8 @@ export function renderCanvas({
   ctx.font = font
 
   const spaceW = ctx.measureText(' ').width
+  const numDigits = String(lines.length).length
+  const gutterWidth = ctx.measureText('0'.repeat(numDigits)).width + 4 * spaceW
   const { rawLevels, effectiveLevels, indentUnit } = buildGuideData(lines, tabSize)
   const activeGuideLevel = activeBracketLevel(lines, cursor.line, rawLevels, effectiveLevels)
 
@@ -240,8 +242,8 @@ export function renderCanvas({
         if (i < m.anchor.line || i > m.head.line) continue
         const colS = i === m.anchor.line ? m.anchor.col : 0
         const colE = i === m.head.line ? m.head.col : lineText.length
-        const xS = PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
-        const xE = PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
+        const xS = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
+        const xE = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
         ctx.fillStyle = mi === searchCurrentIdx ? SEARCH_CURRENT_BG : SEARCH_MATCH_BG
         ctx.fillRect(xS, y, Math.max(xE - xS, 2), lineHeight)
       }
@@ -254,7 +256,7 @@ export function renderCanvas({
     const el = effectiveLevels[i] ?? 0
     const maxG = rl === -1 ? el : rl
     for (let g = 1; g <= maxG; g++) {
-      const gx = Math.floor(PADDING_LEFT + 4 + (g - 1) * indentUnit * spaceW)
+      const gx = Math.floor(gutterWidth + (g - 1) * indentUnit * spaceW)
       ctx.fillStyle = g === activeGuideLevel ? INDENT_GUIDE_ACTIVE : INDENT_GUIDE
       ctx.fillRect(gx, y, 1, lineHeight)
     }
@@ -265,10 +267,10 @@ export function renderCanvas({
       const colEnd = i === selEnd.line ? selEnd.col : lineText.length
 
       ctx.font = font
-      const xStart = PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
+      const xStart = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
       const xEnd =
         i === selEnd.line
-          ? PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
+          ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
           : w
 
       ctx.fillStyle = SELECTION_BG
@@ -282,10 +284,10 @@ export function renderCanvas({
       if (isCollapsed({ anchor: exS, head: exE }) || i < exS.line || i > exE.line) continue
       const colStart = i === exS.line ? exS.col : 0
       const colEnd = i === exE.line ? exE.col : lineText.length
-      const xStart = PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
+      const xStart = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
       const xEnd =
         i === exE.line
-          ? PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
+          ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
           : w
       ctx.fillStyle = SELECTION_BG
       ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
@@ -293,13 +295,13 @@ export function renderCanvas({
 
     // Gutter
     ctx.fillStyle = GUTTER_BG
-    ctx.fillRect(0, y, PADDING_LEFT, lineHeight)
+    ctx.fillRect(0, y, gutterWidth, lineHeight)
 
     // Line number
     ctx.fillStyle = i === cursor.line ? FG : GUTTER_FG
     ctx.textAlign = 'right'
     ctx.textBaseline = 'top'
-    ctx.fillText(String(i + 1), PADDING_LEFT + 4 - 2 * spaceW, y + Math.floor((lineHeight - fontSize) / 2))
+    ctx.fillText(String(i + 1), gutterWidth - 2 * spaceW, y + Math.floor((lineHeight - fontSize) / 2))
 
     // Line text (syntax-highlighted or plain)
     // Always draw lineText chars (not span.text) so text position stays in sync
@@ -310,7 +312,7 @@ export function renderCanvas({
     const textY = y + Math.floor((lineHeight - fontSize) / 2)
     ctx.textAlign = 'left'
     if (tokenLine && tokenLine.length > 0) {
-      let xOff = PADDING_LEFT + 4
+      let xOff = gutterWidth
       let charOff = 0
       for (const span of tokenLine) {
         if (charOff >= lineText.length) break
@@ -326,13 +328,13 @@ export function renderCanvas({
       }
     } else {
       ctx.fillStyle = FG
-      fillTextWithTabs(ctx, lineText, PADDING_LEFT + 4, textY, tabSize)
+      fillTextWithTabs(ctx, lineText, gutterWidth, textY, tabSize)
     }
 
     // Cursor (primary)
     if (cursorVisible && i === cursor.line) {
       const textBefore = lineText.slice(0, cursor.col)
-      const cursorX = PADDING_LEFT + 4 + measureWithTabs(ctx, textBefore, tabSize)
+      const cursorX = gutterWidth + measureWithTabs(ctx, textBefore, tabSize)
       ctx.fillStyle = CURSOR_COLOR
       ctx.fillRect(Math.floor(cursorX), y + 2, 2, lineHeight - 4)
     }
@@ -341,7 +343,7 @@ export function renderCanvas({
     if (cursorVisible) {
       for (const slot of extraCursors ?? []) {
         if (i !== slot.head.line) continue
-        const xExtra = PADDING_LEFT + 4 + measureWithTabs(ctx, lineText.slice(0, slot.head.col), tabSize)
+        const xExtra = gutterWidth + measureWithTabs(ctx, lineText.slice(0, slot.head.col), tabSize)
         ctx.fillStyle = CURSOR_COLOR
         ctx.fillRect(Math.floor(xExtra), y + 2, 2, lineHeight - 4)
       }
@@ -349,6 +351,7 @@ export function renderCanvas({
   }
 
   ctx.restore()
+  return { gutterWidth }
 }
 
 /** Find the column index in `line` closest to pixel offset `targetX`, tab-aware */
