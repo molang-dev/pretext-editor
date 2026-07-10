@@ -266,7 +266,6 @@ export function renderCanvas({
 
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
-  if (hasSel) console.log(`[render] hasSel=true selStart=${selStart.line} selEnd=${selEnd.line} firstLine=${firstLine} lastLine=${lastLine}`)
 
   // Clip search highlights to the visible line range using binary search.
   // Matches are sorted by anchor.line (regex exec is left-to-right), so we can
