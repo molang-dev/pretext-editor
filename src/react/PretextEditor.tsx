@@ -11,6 +11,9 @@ import { ContextMenu } from './ContextMenu'
 import { SearchBar } from './SearchBar'
 import '../styles/editor.css'
 import { EditorController } from '../controller/EditorController'
+
+// Worker URL: '../highlight.worker.js' is correct relative to dist/react/index.js (the bundle output)
+const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
 import type { EditorControllerState } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'
 import {
@@ -91,6 +94,7 @@ export const PretextEditor = forwardRef<
       binding,
       active,
       contextMenuItems,
+      workerUrl: WORKER_URL,
     })
     ctrl.mount(containerRef.current!, canvasRef.current!, textareaRef.current!, onStateChange)
     ctrlRef.current = ctrl

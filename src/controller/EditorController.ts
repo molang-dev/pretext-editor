@@ -1,4 +1,4 @@
-import { IncrementalTokenizer } from '../core/tokenizer'
+import { WorkerTokenizer, firstChangedLine, computeLineDelta, type TokenBatchCallback } from '../core/tokenizer'
 import type { TokenizedLine } from '../core/renderer'
 import { buildSearchRegex, buildLineOffsets, fastOffsetToCursor, applyPreserveCase, INITIAL_SEARCH_STATE, type SearchState, type SearchMatch } from '../core/search'
 import {
@@ -89,6 +89,7 @@ export interface EditorControllerOptions {
   binding?: IEditorBinding
   active?: boolean
   contextMenuItems?: (builtins: ContextMenuBuiltins) => ContextMenuItem[]
+  workerUrl?: URL | string
 }
 
 export interface EditorControllerState {
@@ -158,7 +159,7 @@ export class EditorController {
   selAnchor: Cursor | null = null
   extraCursors: CursorSlot[] = []
   tokenLines: TokenizedLine[] | undefined = undefined
-  private tokenizer = new IncrementalTokenizer()
+  private tokenizer = new WorkerTokenizer()
   menuPos: { x: number; y: number } | null = null
   menuItems: ContextMenuItem[] = []
 
@@ -190,6 +191,8 @@ export class EditorController {
   private lastExternalValue: string
   private tokenLinesPatch: TokenizedLine[] | null = null
   private resizeObserver: ResizeObserver | null = null
+  private tokenEpoch = 0
+  private workerReady = false
 
   // DOM refs
   private container: HTMLDivElement | null = null
@@ -210,6 +213,7 @@ export class EditorController {
     this.active = options.active ?? false
     this.contextMenuItemsFn = options.contextMenuItems
     this.lastExternalValue = options.value
+    this.tokenizer.init(options.workerUrl)
   }
 
   get lineHeight(): number {
@@ -275,11 +279,9 @@ export class EditorController {
 
     // Tokenization
     if (this.language) {
-      this.tokenizer.setLang(this.language).then(() => {
-        if (this.tokenizer.tokenizeFrom(this.doc.lines, 0)) {
-          this.tokenLines = this.tokenizer.tokenLines.slice()
-          this.notifyAndRepaint()
-        }
+      this.tokenizer.setLang(this.language, () => {
+        this.workerReady = true
+        this.triggerFullTokenize()
       })
     }
 
@@ -298,6 +300,7 @@ export class EditorController {
     this.textarea?.removeEventListener('blur', this.onBlur)
     this.container?.removeEventListener('scroll', this.onScroll)
     window.removeEventListener('pointerdown', this.onGlobalPointerDown, { capture: true })
+    this.tokenizer.destroy()
     this.container = null
     this.canvas = null
     this.textarea = null
@@ -332,11 +335,10 @@ export class EditorController {
     if (options.contextMenuItems !== undefined) this.contextMenuItemsFn = options.contextMenuItems
     if (langChanged && this.language) {
       this.tokenLines = undefined
-      this.tokenizer.setLang(this.language).then(() => {
-        if (this.tokenizer.tokenizeFrom(this.doc.lines, 0)) {
-          this.tokenLines = this.tokenizer.tokenLines.slice()
-          this.notifyAndRepaint()
-        }
+      this.workerReady = false
+      this.tokenizer.setLang(this.language, () => {
+        this.workerReady = true
+        this.triggerFullTokenize()
       })
     }
   }
@@ -624,15 +626,25 @@ export class EditorController {
     this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
     if (this.undoStack.length > 200) this.undoStack.shift()
 
-    if (this.language && this.tokenizer) {
+    if (this.language && this.workerReady) {
       const oldLines = this.doc.lines
       const newLines = newDoc.lines
-      const fromLine = IncrementalTokenizer.firstChangedLine(oldLines, newLines)
-      const delta = newLines.length - oldLines.length
-      if (delta !== 0) this.tokenizer.adjustForLineDelta(fromLine, delta)
-      if (this.tokenizer.tokenizeFrom(newLines, fromLine)) {
-        this.tokenLines = this.tokenizer.tokenLines.slice()
+      const fromLine = firstChangedLine(oldLines, newLines)
+      const { removedCount, addedLines } = computeLineDelta(oldLines, newLines, fromLine)
+      const epoch = ++this.tokenEpoch
+
+      if (this.tokenLines) {
+        this.tokenLines.splice(fromLine, removedCount, ...new Array(addedLines.length).fill([]))
+      } else {
+        this.tokenLines = new Array(newLines.length).fill([])
       }
+
+      const cb: TokenBatchCallback = (from, to, tl) => {
+        if (this.tokenEpoch !== epoch) return
+        for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
+        this.repaint()
+      }
+      this.tokenizer.update(fromLine, removedCount, addedLines, cb)
     }
 
     this.doc = newDoc
@@ -641,6 +653,59 @@ export class EditorController {
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
+    this.notifyAndRepaint()
+  }
+
+  // ---- Internal: Worker-backed tokenization ----
+
+  private triggerFullTokenize(): void {
+    const lines = this.doc.lines
+    const epoch = ++this.tokenEpoch
+    this.tokenLines = new Array(lines.length).fill([])
+    this.tokenizer.update(0, 0, lines, (from, to, tl) => {
+      if (this.tokenEpoch !== epoch) return
+      for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
+      this.repaint()
+    })
+  }
+
+  async readFromFile(file: File): Promise<void> {
+    const text = await file.text()
+    const allLines = text.split('\n')
+    const epoch = ++this.tokenEpoch
+
+    this.selAnchor = null
+    this.extraCursors = []
+    this.tokenLines = undefined
+    if (this.container) this.container.scrollTop = 0
+
+    // Progressive content rendering: [200, 400, 800, 1600, rest]
+    const BATCHES = [200, 400, 800, 1600]
+    let shown = 0
+    for (let bi = 0; shown < allLines.length; bi++) {
+      const size = bi < BATCHES.length ? BATCHES[bi] : 2000
+      shown = Math.min(shown + size, allLines.length)
+      this.doc = { lines: allLines.slice(0, shown), cursor: { line: 0, col: 0 } }
+      this.repaint()
+      if (shown < allLines.length) {
+        await new Promise<void>(r => requestAnimationFrame(() => r()))
+        if (this.tokenEpoch !== epoch) return
+      }
+    }
+
+    this.doc = { lines: allLines, cursor: { line: 0, col: 0 } }
+    this.lastExternalValue = text
+    this.onChange(text)
+
+    if (this.language && this.workerReady) {
+      this.tokenLines = new Array(allLines.length).fill([])
+      this.tokenizer.update(0, 0, allLines, (from, to, tl) => {
+        if (this.tokenEpoch !== epoch) return
+        for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
+        this.repaint()
+      })
+    }
+
     this.notifyAndRepaint()
   }
 

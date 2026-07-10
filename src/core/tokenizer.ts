@@ -1,98 +1,80 @@
-import { Registry, Resolver, normalizeTheme } from '@shikijs/primitive'
-import { EncodedTokenMetadata, INITIAL, type IGrammar, type StateStack } from '@shikijs/vscode-textmate'
-import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
-import { bundledLanguages, bundledThemes } from 'shiki'
-import type { LanguageRegistration } from 'shiki'
 import type { TokenizedLine } from './renderer'
 
-const THEME = 'dark-plus'
-const DEFAULT_FG = '#d4d4d4'
+export type TokenBatchCallback = (from: number, to: number, tokenLines: TokenizedLine[]) => void
 
-const jsEngine = createJavaScriptRegexEngine()
+export class WorkerTokenizer {
+  private worker: Worker | null = null
+  private batchCallback: TokenBatchCallback | null = null
+  private currentReqId = 0
+  private langReadyCallback: (() => void) | null = null
 
-export class IncrementalTokenizer {
-  private grammar: IGrammar | null = null
-  private colorMap: string[] = []
-  private lineEndStacks: (StateStack | null)[] = []
-  tokenLines: TokenizedLine[] = []
-
-  async setLang(lang: string): Promise<void> {
-    const langGetter = bundledLanguages[lang as keyof typeof bundledLanguages]
-    if (!langGetter) return
-
-    const [langMod, themeMod] = await Promise.all([langGetter(), bundledThemes[THEME]()])
-    const langs = (Array.isArray(langMod.default) ? langMod.default : [langMod.default]) as LanguageRegistration[]
-    const theme = normalizeTheme(themeMod.default)
-
-    const registry = new Registry(new Resolver(jsEngine, langs), [theme], langs)
-    registry.setTheme(theme)
-    this.colorMap = registry.getColorMap()
-    this.grammar = (registry.getGrammar(lang) ?? null) as IGrammar | null
-    this.lineEndStacks = []
-    this.tokenLines = []
+  init(workerUrl?: URL | string): void {
+    if (typeof Worker === 'undefined') return
+    try {
+      // Default path is correct when tokenizer code lives in dist/index.js (root level).
+      // Framework wrappers (vue/react) must pass their own URL since they are one level deeper.
+      const url = workerUrl ?? new URL('./highlight.worker.js', import.meta.url)
+      this.worker = new Worker(url, { type: 'module' })
+      this.worker.onmessage = (e: MessageEvent) => this.onMessage(e.data)
+    } catch {
+      // Worker not available (e.g., Node.js CJS context)
+    }
   }
 
-  tokenizeFrom(lines: string[], fromLine: number): boolean {
-    const grammar = this.grammar
-    if (!grammar) return false
-
-    const len = lines.length
-    if (this.tokenLines.length !== len) {
-      this.tokenLines.length = len
-      this.lineEndStacks.length = len
+  private onMessage(msg: Record<string, unknown>): void {
+    if (msg.type === 'langReady') {
+      this.langReadyCallback?.()
+      this.langReadyCallback = null
+    } else if (msg.type === 'batch' && msg.reqId === this.currentReqId && this.batchCallback) {
+      this.batchCallback(msg.from as number, msg.to as number, msg.tokenLines as TokenizedLine[])
     }
-
-    let stack: StateStack = fromLine > 0 ? (this.lineEndStacks[fromLine - 1] ?? INITIAL) : INITIAL
-    let changed = false
-
-    for (let i = fromLine; i < len; i++) {
-      const result = grammar.tokenizeLine2(lines[i], stack)
-      const rawTokens = result.tokens
-      const n = rawTokens.length / 2
-      const tokenLine: TokenizedLine = []
-
-      for (let j = 0; j < n; j++) {
-        const start = rawTokens[2 * j]
-        const end = j + 1 < n ? rawTokens[2 * j + 2] : lines[i].length
-        if (start === end) continue
-        const fg = EncodedTokenMetadata.getForeground(rawTokens[2 * j + 1])
-        tokenLine.push({ text: lines[i].slice(start, end), color: this.colorMap[fg] ?? DEFAULT_FG })
-      }
-
-      this.tokenLines[i] = tokenLine
-      changed = true
-
-      const newStack = result.ruleStack
-      const oldStack = this.lineEndStacks[i]
-      this.lineEndStacks[i] = newStack
-      stack = newStack
-
-      if (i > fromLine && oldStack && newStack.equals(oldStack)) break
-    }
-
-    return changed
   }
 
-  static firstChangedLine(oldLines: string[], newLines: string[]): number {
-    const len = Math.min(oldLines.length, newLines.length)
-    for (let i = 0; i < len; i++) {
-      if (oldLines[i] !== newLines[i]) return i
-    }
-    return len
+  setLang(lang: string, onReady: () => void): void {
+    this.langReadyCallback = onReady
+    this.worker?.postMessage({ type: 'setLang', lang })
   }
 
-  adjustForLineDelta(atLine: number, delta: number): void {
-    if (delta > 0) {
-      this.lineEndStacks.splice(atLine, 0, ...new Array(delta).fill(null))
-      this.tokenLines.splice(atLine, 0, ...new Array(delta).fill([]))
-    } else if (delta < 0) {
-      this.lineEndStacks.splice(atLine, -delta)
-      this.tokenLines.splice(atLine, -delta)
-    }
+  update(
+    fromLine: number,
+    removedCount: number,
+    addedLines: string[],
+    onBatch: TokenBatchCallback,
+  ): void {
+    const reqId = ++this.currentReqId
+    this.batchCallback = onBatch
+    this.worker?.postMessage({ type: 'update', reqId, fromLine, removedCount, addedLines })
+  }
+
+  destroy(): void {
+    this.worker?.terminate()
+    this.worker = null
   }
 }
 
-/** Map file extension → Shiki language id */
+export function firstChangedLine(oldLines: string[], newLines: string[]): number {
+  const len = Math.min(oldLines.length, newLines.length)
+  for (let i = 0; i < len; i++) {
+    if (oldLines[i] !== newLines[i]) return i
+  }
+  return len
+}
+
+export function computeLineDelta(
+  oldLines: string[],
+  newLines: string[],
+  fromLine: number,
+): { removedCount: number; addedLines: string[] } {
+  let oldEnd = oldLines.length
+  let newEnd = newLines.length
+  while (oldEnd > fromLine && newEnd > fromLine && oldLines[oldEnd - 1] === newLines[newEnd - 1]) {
+    oldEnd--
+    newEnd--
+  }
+  return { removedCount: oldEnd - fromLine, addedLines: newLines.slice(fromLine, newEnd) }
+}
+
+/** Map file extension → language id */
 export function extToLang(ext: string): string | undefined {
   const map: Record<string, string> = {
     ts: 'typescript', tsx: 'tsx', js: 'javascript', jsx: 'jsx',
@@ -103,8 +85,8 @@ export function extToLang(ext: string): string | undefined {
     css: 'css', scss: 'scss', less: 'less',
     html: 'html', htm: 'html', xml: 'xml', vue: 'vue', svelte: 'svelte',
     json: 'json', jsonc: 'jsonc', yaml: 'yaml', yml: 'yaml', toml: 'toml',
-    md: 'markdown', mdx: 'mdx',
-    sh: 'bash', bash: 'bash', zsh: 'bash', fish: 'fish',
+    md: 'markdown', mdx: 'markdown',
+    sh: 'shellscript', bash: 'shellscript', zsh: 'shellscript', fish: 'fish',
     sql: 'sql', graphql: 'graphql',
   }
   return map[ext.toLowerCase()]

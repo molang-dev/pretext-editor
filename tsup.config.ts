@@ -1,7 +1,7 @@
 import { defineConfig } from 'tsup'
 import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync } from 'fs'
 
-export default defineConfig({
+const mainConfig = defineConfig({
   entry: {
     index: 'src/index.ts',
     'react/index': 'src/react/index.ts',
@@ -12,6 +12,7 @@ export default defineConfig({
   dts: true,
   splitting: false,
   clean: true,
+  shims: true,
   external: [
     'react',
     'react-dom',
@@ -20,15 +21,11 @@ export default defineConfig({
     'svelte',
     'svelte/internal',
     '@chenglou/pretext',
-    'shiki',
-    'shiki/engine/javascript',
-    '@shikijs/primitive',
-    '@shikijs/vscode-textmate',
+    'vscode-textmate',
+    'vscode-oniguruma',
   ],
 
-  // Post-build: copy source files and inject CSS references
   onSuccess: async () => {
-    // Copy framework source files so consumers' compilers can process them.
     mkdirSync('dist/svelte', { recursive: true })
     mkdirSync('dist/controller', { recursive: true })
     mkdirSync('dist/core', { recursive: true })
@@ -46,11 +43,25 @@ export default defineConfig({
       if (f.endsWith('.svg')) cpSync(`src/icons/${f}`, `dist/icons/${f}`)
     }
 
-    // Inject CSS import into ESM output so consumer bundlers (Vite/webpack)
-    // pick up the CSS automatically without manual import.
+    // Copy WASM to dist so worker can load it via relative URL
+    cpSync('node_modules/vscode-oniguruma/release/onig.wasm', 'dist/onig.wasm')
+
+    // Inject CSS import into ESM output
     for (const pkg of ['react', 'vue']) {
       const f = `dist/${pkg}/index.js`
       writeFileSync(f, `import './index.css';\n${readFileSync(f, 'utf-8')}`)
     }
   },
 })
+
+// Worker bundle: bundles vscode-textmate + vscode-oniguruma + all grammars inline
+const workerConfig = defineConfig({
+  entry: { 'highlight.worker': 'src/worker/highlight.worker.ts' },
+  format: ['esm'],
+  dts: false,
+  splitting: false,
+  clean: false,
+  noExternal: ['vscode-textmate', 'vscode-oniguruma'],
+})
+
+export default [mainConfig, workerConfig]

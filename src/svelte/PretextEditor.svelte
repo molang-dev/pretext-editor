@@ -10,6 +10,8 @@
   import type { EditorControllerState, IEditorBinding, ContextMenuBuiltins, ContextMenuItem, PretextEditorHandle } from '../controller/EditorController';
   import type { SearchState, SearchActions } from '../core/search';
 
+  const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
+
   // Props
   export let value: string = '';
   export let language: string | undefined = undefined;
@@ -119,6 +121,7 @@
       binding,
       active,
       contextMenuItems,
+      workerUrl: WORKER_URL,
     });
     ctrl.mount(containerEl, canvasEl, textareaEl, onStateChange);
     window.addEventListener('pointerdown', onWindowPointerDown, { capture: true });

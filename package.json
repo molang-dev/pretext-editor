@@ -4,7 +4,7 @@
   "private": false,
   "description": "High-performance Canvas-virtualized text editor for large documents based @chenglou/pretext",
   "license": "MIT",
-    "repository": {
+  "repository": {
     "type": "git",
     "url": "git+https://github.com/molang-dev/pretext-editor.git"
   },
@@ -51,8 +51,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@chenglou/pretext": "^0.0.8",
-    "shiki": "^4.2.0"
+    "@chenglou/pretext": "^0.0.8"
   },
   "devDependencies": {
     "@angular/core": "^22.0.2",
@@ -61,6 +60,8 @@
     "svelte": "^4.2.20",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vue": "^3.5.38"
+    "vue": "^3.5.38",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.3.2"
   }
 }

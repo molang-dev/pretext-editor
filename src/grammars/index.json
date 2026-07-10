@@ -1,0 +1,221 @@
+{
+  "typescript": {
+    "scopeName": "source.ts"
+  },
+  "tsx": {
+    "scopeName": "source.tsx"
+  },
+  "javascript": {
+    "scopeName": "source.js"
+  },
+  "jsx": {
+    "scopeName": "source.js.jsx"
+  },
+  "python": {
+    "scopeName": "source.python"
+  },
+  "rust": {
+    "scopeName": "source.rust"
+  },
+  "go": {
+    "scopeName": "source.go"
+  },
+  "c": {
+    "scopeName": "source.c"
+  },
+  "regexp": {
+    "scopeName": "source.regexp.python"
+  },
+  "glsl": {
+    "scopeName": "source.glsl",
+    "embeddedLangs": [
+      "c"
+    ]
+  },
+  "sql": {
+    "scopeName": "source.sql"
+  },
+  "cpp-macro": {
+    "scopeName": "source.cpp.embedded.macro",
+    "embeddedLangs": [
+      "regexp",
+      "glsl",
+      "sql"
+    ]
+  },
+  "cpp": {
+    "scopeName": "source.cpp",
+    "embeddedLangs": [
+      "cpp-macro",
+      "regexp",
+      "glsl",
+      "sql"
+    ]
+  },
+  "csharp": {
+    "scopeName": "source.cs"
+  },
+  "java": {
+    "scopeName": "source.java"
+  },
+  "kotlin": {
+    "scopeName": "source.kotlin"
+  },
+  "swift": {
+    "scopeName": "source.swift"
+  },
+  "css": {
+    "scopeName": "source.css"
+  },
+  "html": {
+    "scopeName": "text.html.basic",
+    "embeddedLangs": [
+      "javascript",
+      "css"
+    ]
+  },
+  "haml": {
+    "scopeName": "text.haml",
+    "embeddedLangs": [
+      "javascript",
+      "css"
+    ]
+  },
+  "xml": {
+    "scopeName": "text.xml",
+    "embeddedLangs": [
+      "java"
+    ]
+  },
+  "graphql": {
+    "scopeName": "source.graphql",
+    "embeddedLangs": [
+      "javascript",
+      "typescript",
+      "jsx",
+      "tsx"
+    ]
+  },
+  "shellscript": {
+    "scopeName": "source.shell"
+  },
+  "lua": {
+    "scopeName": "source.lua",
+    "embeddedLangs": [
+      "c"
+    ]
+  },
+  "yaml": {
+    "scopeName": "source.yaml"
+  },
+  "ruby": {
+    "scopeName": "source.ruby",
+    "embeddedLangs": [
+      "html",
+      "haml",
+      "xml",
+      "sql",
+      "graphql",
+      "css",
+      "cpp",
+      "c",
+      "javascript",
+      "shellscript",
+      "lua",
+      "yaml"
+    ]
+  },
+  "json": {
+    "scopeName": "source.json"
+  },
+  "php": {
+    "scopeName": "source.php",
+    "embeddedLangs": [
+      "html",
+      "xml",
+      "sql",
+      "javascript",
+      "json",
+      "css"
+    ]
+  },
+  "r": {
+    "scopeName": "source.r"
+  },
+  "dart": {
+    "scopeName": "source.dart"
+  },
+  "scala": {
+    "scopeName": "source.scala"
+  },
+  "scss": {
+    "scopeName": "source.css.scss",
+    "embeddedLangs": [
+      "css"
+    ]
+  },
+  "less": {
+    "scopeName": "source.css.less"
+  },
+  "html-derivative": {
+    "scopeName": "text.html.derivative",
+    "embeddedLangs": [
+      "html"
+    ]
+  },
+  "markdown-vue": {
+    "scopeName": "markdown.vue.codeblock"
+  },
+  "vue-directives": {
+    "scopeName": "vue.directives"
+  },
+  "vue-interpolations": {
+    "scopeName": "vue.interpolations"
+  },
+  "vue-sfc-style-variable-injection": {
+    "scopeName": "vue.sfc.style.variable.injection",
+    "embeddedLangs": [
+      "javascript"
+    ]
+  },
+  "vue": {
+    "scopeName": "text.html.vue",
+    "embeddedLangs": [
+      "css",
+      "javascript",
+      "typescript",
+      "json",
+      "html",
+      "html-derivative",
+      "markdown-vue",
+      "vue-directives",
+      "vue-interpolations",
+      "vue-sfc-style-variable-injection"
+    ]
+  },
+  "postcss": {
+    "scopeName": "source.css.postcss"
+  },
+  "svelte": {
+    "scopeName": "source.svelte",
+    "embeddedLangs": [
+      "javascript",
+      "typescript",
+      "css",
+      "postcss"
+    ]
+  },
+  "jsonc": {
+    "scopeName": "source.json.comments"
+  },
+  "toml": {
+    "scopeName": "source.toml"
+  },
+  "markdown": {
+    "scopeName": "text.html.markdown",
+    "embeddedLangs": []
+  },
+  "fish": {
+    "scopeName": "source.fish"
+  }
+}

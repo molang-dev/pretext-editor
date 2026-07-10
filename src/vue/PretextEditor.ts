@@ -17,6 +17,9 @@ import type { SearchState, SearchActions } from '../core/search'
 
 // Shared CSS — tsup bundles these into dist/vue/index.css
 import '../styles/icons.css'
+
+// Worker URL: '../highlight.worker.js' is correct relative to dist/vue/index.js (the bundle output)
+const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
 import '../styles/editor.css'
 import '../styles/context-menu.css'
 import '../styles/search-bar.css'
@@ -139,6 +142,7 @@ export const PretextEditor = defineComponent({
         binding: props.binding,
         active: props.active,
         contextMenuItems: props.contextMenuItems as any,
+        workerUrl: WORKER_URL,
       })
       ctrl.mount(containerRef.value!, canvasRef.value!, textareaRef.value!, onStateChange)
       window.addEventListener('pointerdown', onWindowPointerDown, { capture: true })
