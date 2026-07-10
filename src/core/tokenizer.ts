@@ -44,10 +44,11 @@ export class WorkerTokenizer {
     removedCount: number,
     addedLines: string[],
     onBatch: TokenBatchCallback,
+    visibleTo?: number,
   ): void {
     const reqId = ++this.currentReqId
     this.batchCallback = onBatch
-    this.worker?.postMessage({ type: 'update', reqId, fromLine, removedCount, addedLines })
+    this.worker?.postMessage({ type: 'update', reqId, fromLine, removedCount, addedLines, visibleTo })
   }
 
   destroy(): void {

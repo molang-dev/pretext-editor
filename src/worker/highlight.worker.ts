@@ -213,24 +213,33 @@ function tokenizeRange(from: number, to: number): TokenizedLine[] {
 
 const BATCH_SIZES = [200, 400, 800, 1600]
 
-async function tokenizeBatches(reqId: number, fromLine: number): Promise<void> {
+async function tokenizeBatches(reqId: number, fromLine: number, visibleTo: number): Promise<void> {
   let from = fromLine
-  let bi = 0
 
+  // Phase 1: priority pass — tokenize from fromLine to visibleTo in one shot
+  // so the visible viewport is highlighted before the rest of the file.
+  if (visibleTo > from) {
+    if (currentReqId !== reqId) return
+    const result = tokenizeRange(from, visibleTo)
+    const actualTo = from + result.length
+    if (currentReqId !== reqId) return
+    self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
+    if (result.length < visibleTo - from) return // incremental early-exit
+    from = visibleTo
+    await new Promise<void>(r => setTimeout(r, 0))
+  }
+
+  // Phase 2: background fill — remaining lines in progressive batches
+  let bi = 0
   while (from < lines.length) {
     if (currentReqId !== reqId) return
-
     const size = bi < BATCH_SIZES.length ? BATCH_SIZES[bi++] : 2000
     const to = Math.min(from + size, lines.length)
     const result = tokenizeRange(from, to)
     const actualTo = from + result.length
-
     if (currentReqId !== reqId) return
     self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
-
-    // Early exit if incremental optimization triggered (result shorter than range)
     if (result.length < to - from) break
-
     from = to
     if (from < lines.length) {
       await new Promise<void>(r => setTimeout(r, 0))
@@ -259,7 +268,7 @@ function dispatch(msg: { type: string; [k: string]: unknown }): void {
   } else if (msg.type === 'update') {
     applyEdit(msg.fromLine as number, msg.removedCount as number, msg.addedLines as string[])
     currentReqId = msg.reqId as number
-    tokenizeBatches(currentReqId, msg.fromLine as number)
+    tokenizeBatches(currentReqId, msg.fromLine as number, (msg.visibleTo as number | undefined) ?? 0)
   }
 }
 

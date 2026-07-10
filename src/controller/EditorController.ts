@@ -196,6 +196,7 @@ export class EditorController {
   private tokenEpoch = 0
   private workerReady = false
   private gutterWidth = PADDING_LEFT
+  private lastRenderOptions: import('../core/renderer').RenderOptions | null = null
 
   // DOM refs
   private container: HTMLDivElement | null = null
@@ -255,7 +256,7 @@ export class EditorController {
     this.cursorVisible = true
     this.blinkTimer = setInterval(() => {
       this.cursorVisible = !this.cursorVisible
-      this.repaint()
+      this.repaintCursorLine()
     }, 530)
 
     // Auto-focus
@@ -650,12 +651,13 @@ export class EditorController {
         this.tokenLines = new Array(newLines.length).fill([])
       }
 
+      const visEnd = this.visibleLineEnd()
       const cb: TokenBatchCallback = (from, to, tl) => {
         if (this.tokenEpoch !== epoch) return
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
         this.repaint()
       }
-      this.tokenizer.update(fromLine, removedCount, addedLines, cb)
+      this.tokenizer.update(fromLine, removedCount, addedLines, cb, visEnd)
     }
 
     this.doc = newDoc
@@ -669,15 +671,26 @@ export class EditorController {
 
   // ---- Internal: Worker-backed tokenization ----
 
+  private visibleLineEnd(): number {
+    if (!this.container) return 0
+    const scrollTop = this.container.scrollTop
+    const h = this.container.clientHeight
+    return Math.min(
+      this.doc.lines.length,
+      Math.ceil((scrollTop + h - PADDING_TOP) / this.lineHeight) + 1,
+    )
+  }
+
   private triggerFullTokenize(): void {
     const lines = this.doc.lines
     const epoch = ++this.tokenEpoch
+    const visEnd = this.visibleLineEnd()
     this.tokenLines = new Array(lines.length).fill([])
     this.tokenizer.update(0, 0, lines, (from, to, tl) => {
       if (this.tokenEpoch !== epoch) return
       for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
       this.repaint()
-    })
+    }, visEnd)
   }
 
   async readFromFile(file: File): Promise<void> {
@@ -714,7 +727,7 @@ export class EditorController {
         if (this.tokenEpoch !== epoch) return
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
         this.repaint()
-      })
+      }, this.visibleLineEnd())
     }
 
     this.notifyAndRepaint()
@@ -834,7 +847,7 @@ export class EditorController {
     const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
     this.tokenLinesPatch = null
 
-    this.gutterWidth = renderCanvas({
+    const opts: import('../core/renderer').RenderOptions = {
       canvas,
       lines: this.doc.lines,
       cursor: this.doc.cursor,
@@ -849,7 +862,22 @@ export class EditorController {
       searchHighlights: this.searchState.isOpen ? this.searchMatches : undefined,
       searchCurrentIdx: this.searchState.currentIndex,
       theme: this.theme,
-    }).gutterWidth
+    }
+    this.lastRenderOptions = opts
+    this.gutterWidth = renderCanvas(opts).gutterWidth
+  }
+
+  private repaintCursorLine(): void {
+    const canvas = this.canvas
+    const container = this.container
+    const opts = this.lastRenderOptions
+    if (!canvas || !container || !opts) return
+    const cursorLine = this.doc.cursor.line
+    const lineHeight = this.lineHeight
+    const y = PADDING_TOP + cursorLine * lineHeight - container.scrollTop
+    const h = canvas.height / (window.devicePixelRatio || 1)
+    if (y + lineHeight < 0 || y > h) return
+    renderCanvas({ ...opts, cursorVisible: this.cursorVisible, singleLine: cursorLine })
   }
 
   // ---- Internal: Cursor from pointer ----

@@ -71,6 +71,7 @@ export interface RenderOptions {
   searchHighlights?: SearchMatch[]
   searchCurrentIdx?: number
   theme?: string
+  singleLine?: number
 }
 
 /** Count leading-whitespace depth in spaces (tabs expand to tabSize) */
@@ -204,6 +205,7 @@ export function renderCanvas({
   searchHighlights,
   searchCurrentIdx = -1,
   theme,
+  singleLine,
 }: RenderOptions): { gutterWidth: number } {
   const ctx = canvas.getContext('2d')
   if (!ctx) return { gutterWidth: PADDING_LEFT }
@@ -218,14 +220,25 @@ export function renderCanvas({
   ctx.save()
   ctx.scale(dpr, dpr)
 
+  // singleLine mode: clip to that row only, skip background clear of whole canvas
+  if (singleLine !== undefined) {
+    const lineY = PADDING_TOP + singleLine * lineHeight - scrollTop
+    ctx.beginPath()
+    ctx.rect(0, lineY, w, lineHeight)
+    ctx.clip()
+  }
+
   ctx.fillStyle = tc.bg
   ctx.fillRect(0, 0, w, h)
 
-  const firstLine = Math.max(0, Math.floor(scrollTop / lineHeight) - 1)
-  const lastLine = Math.min(lines.length - 1, Math.ceil((scrollTop + h) / lineHeight))
+  const firstLine = singleLine !== undefined
+    ? Math.max(0, singleLine)
+    : Math.max(0, Math.floor(scrollTop / lineHeight) - 1)
+  const lastLine = singleLine !== undefined
+    ? Math.min(lines.length - 1, singleLine)
+    : Math.min(lines.length - 1, Math.ceil((scrollTop + h) / lineHeight))
 
   ctx.font = font
-
   const spaceW = ctx.measureText(' ').width
   const numDigits = String(lines.length).length
   const gutterWidth = ctx.measureText('0'.repeat(numDigits)).width + 4 * spaceW
