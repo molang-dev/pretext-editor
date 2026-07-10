@@ -186,6 +186,9 @@ export class EditorController {
   private isComposing = false
   private dragAnchor: Cursor | null = null
   private columnDrag: { anchorLine: number; anchorCol: number } | null = null
+  private autoScrollVelocity = 0
+  private autoScrollRaf: number | null = null
+  private lastDragEvent: PointerEvent | null = null
   private isEditorActive = false
   private cursorVisible = true
   private blinkTimer: ReturnType<typeof setInterval> | null = null
@@ -300,6 +303,7 @@ export class EditorController {
 
   destroy(): void {
     if (this.blinkTimer) { clearInterval(this.blinkTimer); this.blinkTimer = null }
+    this.stopAutoScroll()
     this.resizeObserver?.disconnect()
     this.canvas?.removeEventListener('pointerdown', this.onPointerDown)
     this.canvas?.removeEventListener('pointermove', this.onPointerMove)
@@ -1046,9 +1050,52 @@ export class EditorController {
     this.selAnchor = this.dragAnchor
     this.doc = { ...this.doc, cursor: newHead }
     this.notifyAndRepaint()
+    this.lastDragEvent = e
+    this.updateAutoScroll(e)
+  }
+
+  private updateAutoScroll(e: PointerEvent): void {
+    const rect = this.container!.getBoundingClientRect()
+    const ZONE = 20, SPEED_PER_PX = 1.5, MAX_SPEED = 50
+    const y = e.clientY
+    const distTop = rect.top + ZONE - y
+    const distBottom = y - rect.bottom + ZONE
+    if (distTop > 0)
+      this.autoScrollVelocity = -Math.min(distTop * SPEED_PER_PX, MAX_SPEED)
+    else if (distBottom > 0)
+      this.autoScrollVelocity = Math.min(distBottom * SPEED_PER_PX, MAX_SPEED)
+    else
+      this.autoScrollVelocity = 0
+    if (this.autoScrollVelocity !== 0 && this.autoScrollRaf === null)
+      this.autoScrollRaf = requestAnimationFrame(this.autoScrollTick)
+  }
+
+  private autoScrollTick = (): void => {
+    if (!this.autoScrollVelocity || !this.container || !this.dragAnchor) {
+      this.autoScrollRaf = null
+      return
+    }
+    this.container.scrollTop += this.autoScrollVelocity
+    if (this.lastDragEvent) {
+      const newHead = this.cursorFromPointer(this.lastDragEvent)
+      this.selAnchor = this.dragAnchor
+      this.doc = { ...this.doc, cursor: newHead }
+      this.notifyAndRepaint()
+    }
+    this.autoScrollRaf = requestAnimationFrame(this.autoScrollTick)
+  }
+
+  private stopAutoScroll(): void {
+    this.autoScrollVelocity = 0
+    if (this.autoScrollRaf !== null) {
+      cancelAnimationFrame(this.autoScrollRaf)
+      this.autoScrollRaf = null
+    }
   }
 
   private onPointerUp = (): void => {
+    this.stopAutoScroll()
+    this.lastDragEvent = null
     this.dragAnchor = null
     this.columnDrag = null
   }
