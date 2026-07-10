@@ -690,6 +690,7 @@ export class EditorController {
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
+    this.scrollCursorIntoView()
     if (!workerWillRepaint) this.notifyAndRepaint()
   }
 
