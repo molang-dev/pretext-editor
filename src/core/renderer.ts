@@ -96,6 +96,18 @@ function detectIndentUnit(lines: string[], tabSize: number): number {
   return isFinite(unit) ? unit : tabSize
 }
 
+let _guideCache: {
+  lines: string[]
+  tabSize: number
+  result: { rawLevels: number[]; effectiveLevels: number[]; indentUnit: number }
+} | null = null
+
+let _ablCache: {
+  lines: string[]
+  cursorLine: number
+  result: number
+} | null = null
+
 function buildGuideData(
   lines: string[],
   tabSize: number,
@@ -242,8 +254,15 @@ export function renderCanvas({
   const spaceW = ctx.measureText(' ').width
   const numDigits = String(lines.length).length
   const gutterWidth = ctx.measureText('0'.repeat(numDigits)).width + 4 * spaceW
-  const { rawLevels, effectiveLevels, indentUnit } = buildGuideData(lines, tabSize)
-  const activeGuideLevel = activeBracketLevel(lines, cursor.line, rawLevels, effectiveLevels)
+  if (!_guideCache || _guideCache.lines !== lines || _guideCache.tabSize !== tabSize) {
+    _guideCache = { lines, tabSize, result: buildGuideData(lines, tabSize) }
+  }
+  const { rawLevels, effectiveLevels, indentUnit } = _guideCache.result
+
+  if (!_ablCache || _ablCache.lines !== lines || _ablCache.cursorLine !== cursor.line) {
+    _ablCache = { lines, cursorLine: cursor.line, result: activeBracketLevel(lines, cursor.line, rawLevels, effectiveLevels) }
+  }
+  const activeGuideLevel = _ablCache.result
 
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
