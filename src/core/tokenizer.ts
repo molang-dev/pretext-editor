@@ -47,11 +47,16 @@ export class WorkerTokenizer {
     removedCount: number,
     addedLines: string[],
     onBatch: TokenBatchCallback,
+    visibleFrom?: number,
     visibleTo?: number,
   ): void {
     const reqId = ++this.currentReqId
     this.batchCallback = onBatch
-    this.worker?.postMessage({ type: 'update', reqId, fromLine, removedCount, addedLines, visibleTo })
+    this.worker?.postMessage({ type: 'update', reqId, fromLine, removedCount, addedLines, visibleFrom, visibleTo })
+  }
+
+  notifyViewport(visFrom: number, visTo: number): void {
+    this.worker?.postMessage({ type: 'viewport', visFrom, visTo })
   }
 
   destroy(): void {

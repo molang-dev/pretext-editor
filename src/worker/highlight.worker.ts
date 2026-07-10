@@ -171,28 +171,74 @@ function tokenizeRange(from: number, to: number): TokenizedLine[] {
   return result
 }
 
-const BATCH_SIZES = [200, 400, 800, 1600]
+// Tokenize a range using INITIAL state (approximate). Does NOT update lineEndStacks,
+// so the sequential pass can still correct with the true state later.
+function tokenizeRangePreview(from: number, to: number): TokenizedLine[] {
+  if (!grammar) return []
+  let stack: StateStack = INITIAL
+  const result: TokenizedLine[] = []
+  for (let i = from; i < to && i < lines.length; i++) {
+    const res = grammar.tokenizeLine2(lines[i], stack)
+    const raw = res.tokens
+    const n = raw.length / 2
+    const tl: TokenizedLine = []
+    for (let j = 0; j < n; j++) {
+      const start = raw[2 * j]
+      const end = j + 1 < n ? raw[2 * j + 2] : lines[i].length
+      if (start >= end) continue
+      const fgIdx = (raw[2 * j + 1] & FOREGROUND_MASK) >>> FOREGROUND_SHIFT
+      tl.push({ text: lines[i].slice(start, end), color: colorMap[fgIdx] ?? defaultFg })
+    }
+    stack = res.ruleStack
+    tokenLines[i] = tl
+    result.push(tl)
+  }
+  return result
+}
 
-async function tokenizeBatches(reqId: number, fromLine: number, visibleTo: number): Promise<void> {
+const BATCH_SIZES = [200, 400, 800, 1600]
+let latestPriorityEnd = 0
+let currentFromLine = 0
+
+async function tokenizeBatches(reqId: number, fromLine: number, visFrom: number, visTo: number): Promise<void> {
+  latestPriorityEnd = 0
   let from = fromLine
 
-  // Phase 1: priority pass — tokenize from fromLine to visibleTo in one shot
-  // so the visible viewport is highlighted before the rest of the file.
-  if (visibleTo > from) {
+  // Phase 1: priority pass — visible viewport + one viewport height of buffer below
+  const prefetch = Math.max(0, visTo - visFrom)
+  const phase1End = Math.min(lines.length, visTo + prefetch)
+  if (phase1End > from) {
     if (currentReqId !== reqId) return
-    const result = tokenizeRange(from, visibleTo)
+    const result = tokenizeRange(from, phase1End)
     const actualTo = from + result.length
     if (currentReqId !== reqId) return
     self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
-    if (result.length < visibleTo - from) return // incremental early-exit
-    from = visibleTo
+    if (result.length < phase1End - from) return
+    from = phase1End
     await new Promise<void>(r => setTimeout(r, 0))
   }
 
-  // Phase 2: background fill — remaining lines in progressive batches
+  // Phase 2: background fill — with viewport catch-up if user scrolls into unprocessed territory
   let bi = 0
   while (from < lines.length) {
     if (currentReqId !== reqId) return
+
+    const pEnd = latestPriorityEnd
+    if (pEnd > from) {
+      // User scrolled ahead — rush there in one burst (worker doesn't block main thread)
+      const to = Math.min(lines.length, pEnd)
+      const result = tokenizeRange(from, to)
+      const actualTo = from + result.length
+      if (currentReqId !== reqId) return
+      self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
+      if (result.length < to - from) break
+      from = to
+      bi = 0
+      await new Promise<void>(r => setTimeout(r, 0))
+      continue
+    }
+
+    // Normal progressive batch
     const size = BATCH_SIZES[Math.min(bi++, BATCH_SIZES.length - 1)]
     const to = Math.min(from + size, lines.length)
     const result = tokenizeRange(from, to)
@@ -226,9 +272,32 @@ function dispatch(msg: { type: string; [k: string]: unknown }): void {
   } else if (msg.type === 'setTheme') {
     handleSetTheme(msg.themeName as string)
   } else if (msg.type === 'update') {
+    currentFromLine = msg.fromLine as number
     applyEdit(msg.fromLine as number, msg.removedCount as number, msg.addedLines as string[])
     currentReqId = msg.reqId as number
-    tokenizeBatches(currentReqId, msg.fromLine as number, (msg.visibleTo as number | undefined) ?? 0)
+    tokenizeBatches(
+      currentReqId,
+      msg.fromLine as number,
+      (msg.visibleFrom as number | undefined) ?? 0,
+      (msg.visibleTo as number | undefined) ?? 0,
+    )
+  } else if (msg.type === 'viewport') {
+    const visFrom = msg.visFrom as number
+    const visTo = msg.visTo as number
+    const pEnd = visTo + Math.max(0, visTo - visFrom)
+    if (pEnd > latestPriorityEnd) latestPriorityEnd = pEnd
+    // Immediate approximate preview covering 3N lines (N above + N visible + N below).
+    // Only fires when the sequential pass hasn't yet reached previewFrom.
+    // currentFromLine prevents overwriting correctly-tokenized lines above the edit.
+    const N = visTo - visFrom
+    const previewFrom = Math.max(currentFromLine, Math.max(0, visFrom - N))
+    const previewTo = Math.min(lines.length, visTo + N)
+    if (previewFrom < lines.length && (previewFrom === 0 || lineEndStacks[previewFrom - 1] === null)) {
+      const result = tokenizeRangePreview(previewFrom, previewTo)
+      if (result.length > 0) {
+        self.postMessage({ type: 'batch', reqId: currentReqId, from: previewFrom, to: previewFrom + result.length, tokenLines: result })
+      }
+    }
   }
 }
 

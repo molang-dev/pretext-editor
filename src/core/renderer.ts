@@ -266,7 +266,6 @@ export function renderCanvas({
 
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
-
   // Clip search highlights to the visible line range using binary search.
   // Matches are sorted by anchor.line (regex exec is left-to-right), so we can
   // find the sub-array that overlaps [firstLine, lastLine] in O(log n).

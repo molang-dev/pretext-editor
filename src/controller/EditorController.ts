@@ -663,13 +663,23 @@ export class EditorController {
         this.tokenLines.splice(fromLine, removedCount, ...new Array(addedLines.length).fill([]))
       }
 
+      const visFrom = this.visibleLineStart()
       const visEnd = this.visibleLineEnd(newLines.length)
       const cb: TokenBatchCallback = (from, to, tl) => {
         if (this.tokenEpoch !== epoch) return
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
         if (this.batchOverlapsViewport(from, to)) this.notifyAndRepaint()
       }
-      this.tokenizer.update(fromLine, removedCount, addedLines, cb, visEnd)
+      this.tokenizer.update(fromLine, removedCount, addedLines, cb, visFrom, visEnd)
+      // If the new cursor lands outside the current viewport (e.g. paste jumps to end),
+      // tell the worker immediately so Phase 2 rushes there without waiting for onScroll.
+      const newCursorLine = newDoc.cursor.line
+      if (newCursorLine > visEnd || newCursorLine < visFrom) {
+        const linesPerPage = visEnd - visFrom
+        const newVisTo = Math.min(newLines.length, newCursorLine + 1)
+        const newVisFrom = Math.max(0, newVisTo - linesPerPage)
+        this.tokenizer.notifyViewport(newVisFrom, newVisTo)
+      }
       workerWillRepaint = true
     }
 
@@ -683,6 +693,11 @@ export class EditorController {
   }
 
   // ---- Internal: Worker-backed tokenization ----
+
+  private visibleLineStart(): number {
+    if (!this.container) return 0
+    return Math.max(0, Math.floor((this.container.scrollTop - PADDING_TOP) / this.lineHeight))
+  }
 
   private visibleLineEnd(lineCount = this.doc.lines.length): number {
     if (!this.container) return 0
@@ -703,13 +718,14 @@ export class EditorController {
   private triggerFullTokenize(): void {
     const lines = this.doc.lines
     const epoch = ++this.tokenEpoch
+    const visFrom = this.visibleLineStart()
     const visEnd = this.visibleLineEnd()
     this.tokenLines = new Array(lines.length).fill([])
     this.tokenizer.update(0, 0, lines, (from, to, tl) => {
       if (this.tokenEpoch !== epoch) return
       for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
       if (this.batchOverlapsViewport(from, to)) this.repaint()
-    }, visEnd)
+    }, visFrom, visEnd)
   }
 
   async readFromFile(file: File): Promise<void> {
@@ -746,7 +762,7 @@ export class EditorController {
         if (this.tokenEpoch !== epoch) return
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
         if (this.batchOverlapsViewport(from, to)) this.repaint()
-      }, this.visibleLineEnd())
+      }, this.visibleLineStart(), this.visibleLineEnd())
     }
 
     this.notifyAndRepaint()
@@ -871,7 +887,7 @@ export class EditorController {
     this.updateContentHeight()
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
-    const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
+const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
     this.tokenLinesPatch = null
 
     const opts: import('../core/renderer').RenderOptions = {
@@ -944,6 +960,7 @@ export class EditorController {
   // ---- Internal: Auto-scroll cursor into view ----
 
   private scrollCursorIntoView(): void {
+    this.updateContentHeight()
     const container = this.container
     if (!container || container.clientHeight === 0) return
     const cursorY = PADDING_TOP + this.doc.cursor.line * this.lineHeight
@@ -958,6 +975,9 @@ export class EditorController {
 
   private onScroll = (): void => {
     this.repaint()
+    if (this.language && this.workerReady) {
+      this.tokenizer.notifyViewport(this.visibleLineStart(), this.visibleLineEnd())
+    }
     if (!this.binding || !this.active) return
     if (!this.container) return
     const topLine = Math.max(0, Math.floor((this.container.scrollTop - PADDING_TOP) / this.lineHeight))
@@ -1050,7 +1070,7 @@ export class EditorController {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!(e.buttons & 1)) return
-    if (this.columnDrag !== null) {
+if (this.columnDrag !== null) {
       const pos = this.cursorFromPointer(e)
       const { anchorLine, anchorCol } = this.columnDrag
       this.buildColumnSelection(anchorLine, anchorCol, pos.line, pos.col)
@@ -1060,7 +1080,7 @@ export class EditorController {
     const newHead = this.cursorFromPointer(e)
     this.selAnchor = this.dragAnchor
     this.doc = { ...this.doc, cursor: newHead }
-    this.notifyAndRepaint()
+this.notifyAndRepaint()
     this.lastDragEvent = e
     this.updateAutoScroll(e)
   }
