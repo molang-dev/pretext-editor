@@ -19,6 +19,8 @@ import '../styles/icons.css'
 
 // Worker URL: '../highlight.worker.js' is correct relative to dist/vue/index.js (the bundle output)
 const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
+// Eagerly start the worker so WASM compiles in parallel with Vue initialization
+const eagerWorker = typeof Worker !== 'undefined' ? new Worker(WORKER_URL, { type: 'module' }) : null
 import '../styles/editor.css'
 import '../styles/context-menu.css'
 import '../styles/search-bar.css'
@@ -141,6 +143,7 @@ export const PretextEditor = defineComponent({
         binding: props.binding,
         active: props.active,
         contextMenuItems: props.contextMenuItems as any,
+        worker: eagerWorker ?? undefined,
         workerUrl: WORKER_URL,
         theme: props.theme,
       })

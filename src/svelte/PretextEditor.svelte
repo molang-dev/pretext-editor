@@ -1,3 +1,9 @@
+<script context="module" lang="ts">
+  // Eagerly start the worker at module load so WASM compiles in parallel with Svelte initialization
+  const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
+  export const eagerWorker = typeof Worker !== 'undefined' ? new Worker(WORKER_URL, { type: 'module' }) : null
+</script>
+
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
   import { EditorController } from '../controller/EditorController';
@@ -8,8 +14,6 @@
   } from '../core/renderer';
   import type { EditorControllerState, IEditorBinding, ContextMenuBuiltins, ContextMenuItem, PretextEditorHandle } from '../controller/EditorController';
   import type { SearchState, SearchActions } from '../core/search';
-
-  const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
 
   // Props
   export let value: string = '';
@@ -117,6 +121,7 @@
       binding,
       active,
       contextMenuItems,
+      worker: eagerWorker ?? undefined,
       workerUrl: WORKER_URL,
       theme,
     });

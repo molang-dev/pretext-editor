@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node build.js && npx serve ."
+    "dev": "node build.js && npx serve .",
+    "start": "node build.js && npx serve ."
   },
   "dependencies": {
     "pretext-editor": "file:../.."

@@ -89,6 +89,7 @@ export interface EditorControllerOptions {
   binding?: IEditorBinding
   active?: boolean
   contextMenuItems?: (builtins: ContextMenuBuiltins) => ContextMenuItem[]
+  worker?: Worker
   workerUrl?: URL | string
   theme?: string
 }
@@ -222,7 +223,7 @@ export class EditorController {
     this.contextMenuItemsFn = options.contextMenuItems
     this.lastExternalValue = options.value
     this.theme = options.theme ?? 'dark-plus'
-    this.tokenizer.init(options.workerUrl)
+    this.tokenizer.init(options.worker ?? options.workerUrl)
     if (this.theme !== 'dark-plus') this.tokenizer.setTheme(this.theme)
   }
 

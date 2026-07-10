@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite"
+    "dev": "vite",
+    "start": "vite"
   },
   "dependencies": {
     "pretext-editor": "file:../..",

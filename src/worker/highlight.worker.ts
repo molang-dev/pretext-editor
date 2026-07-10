@@ -2,103 +2,59 @@ import { loadWASM, createOnigScanner, createOnigString } from 'vscode-oniguruma'
 import { Registry, INITIAL, type IRawGrammar, type StateStack } from 'vscode-textmate'
 import type { TokenizedLine } from '../core/renderer'
 
-// ---- Grammar data (all bundled inline) ----
-import typescript from '../grammars/typescript.json'
-import tsx from '../grammars/tsx.json'
-import javascript from '../grammars/javascript.json'
-import jsx from '../grammars/jsx.json'
-import python from '../grammars/python.json'
-import rust from '../grammars/rust.json'
-import go from '../grammars/go.json'
-import c from '../grammars/c.json'
-import regexp from '../grammars/regexp.json'
-import glsl from '../grammars/glsl.json'
-import sql from '../grammars/sql.json'
-import cpp_macro from '../grammars/cpp-macro.json'
-import cpp from '../grammars/cpp.json'
-import csharp from '../grammars/csharp.json'
-import java from '../grammars/java.json'
-import kotlin from '../grammars/kotlin.json'
-import swift from '../grammars/swift.json'
-import css from '../grammars/css.json'
-import html from '../grammars/html.json'
-import haml from '../grammars/haml.json'
-import xml from '../grammars/xml.json'
-import graphql from '../grammars/graphql.json'
-import shellscript from '../grammars/shellscript.json'
-import lua from '../grammars/lua.json'
-import yaml from '../grammars/yaml.json'
-import ruby from '../grammars/ruby.json'
-import json from '../grammars/json.json'
-import php from '../grammars/php.json'
-import r from '../grammars/r.json'
-import dart from '../grammars/dart.json'
-import scala from '../grammars/scala.json'
-import scss from '../grammars/scss.json'
-import less from '../grammars/less.json'
-import html_derivative from '../grammars/html-derivative.json'
-import markdown_vue from '../grammars/markdown-vue.json'
-import vue_directives from '../grammars/vue-directives.json'
-import vue_interpolations from '../grammars/vue-interpolations.json'
-import vue_sfc from '../grammars/vue-sfc-style-variable-injection.json'
-import vue from '../grammars/vue.json'
-import postcss from '../grammars/postcss.json'
-import svelte from '../grammars/svelte.json'
-import jsonc from '../grammars/jsonc.json'
-import toml from '../grammars/toml.json'
-import markdown from '../grammars/markdown.json'
-import fish from '../grammars/fish.json'
+// ---- Themes (small, always needed, stay inline) ----
 import darkPlusRaw from '../themes/dark-plus.json'
 import draculaRaw from '../themes/dracula.json'
 import githubLightRaw from '../themes/github-light.json'
 import grammarIndex from '../grammars/index.json'
 
-const GRAMMAR_BY_SCOPE: Record<string, unknown> = {
-  'source.ts': typescript,
-  'source.tsx': tsx,
-  'source.js': javascript,
-  'source.js.jsx': jsx,
-  'source.python': python,
-  'source.rust': rust,
-  'source.go': go,
-  'source.c': c,
-  'source.regexp.python': regexp,
-  'source.glsl': glsl,
-  'source.sql': sql,
-  'source.cpp.embedded.macro': cpp_macro,
-  'source.cpp': cpp,
-  'source.cs': csharp,
-  'source.java': java,
-  'source.kotlin': kotlin,
-  'source.swift': swift,
-  'source.css': css,
-  'text.html.basic': html,
-  'text.haml': haml,
-  'text.xml': xml,
-  'source.graphql': graphql,
-  'source.shell': shellscript,
-  'source.lua': lua,
-  'source.yaml': yaml,
-  'source.ruby': ruby,
-  'source.json': json,
-  'source.php': php,
-  'source.r': r,
-  'source.dart': dart,
-  'source.scala': scala,
-  'source.css.scss': scss,
-  'source.css.less': less,
-  'text.html.derivative': html_derivative,
-  'markdown.vue.codeblock': markdown_vue,
-  'vue.directives': vue_directives,
-  'vue.interpolations': vue_interpolations,
-  'vue.sfc.style.variable.injection': vue_sfc,
-  'text.html.vue': vue,
-  'source.css.postcss': postcss,
-  'source.svelte': svelte,
-  'source.json.comments': jsonc,
-  'source.toml': toml,
-  'text.html.markdown': markdown,
-  'source.fish': fish,
+// ---- Grammar lazy-loaders (dynamic import → separate chunks, fetched on demand) ----
+const GRAMMAR_LOADERS: Record<string, () => Promise<{ default: unknown }>> = {
+  'source.ts':                              () => import('../grammars/typescript.json'),
+  'source.tsx':                             () => import('../grammars/tsx.json'),
+  'source.js':                              () => import('../grammars/javascript.json'),
+  'source.js.jsx':                          () => import('../grammars/jsx.json'),
+  'source.python':                          () => import('../grammars/python.json'),
+  'source.rust':                            () => import('../grammars/rust.json'),
+  'source.go':                              () => import('../grammars/go.json'),
+  'source.c':                               () => import('../grammars/c.json'),
+  'source.regexp.python':                   () => import('../grammars/regexp.json'),
+  'source.glsl':                            () => import('../grammars/glsl.json'),
+  'source.sql':                             () => import('../grammars/sql.json'),
+  'source.cpp.embedded.macro':              () => import('../grammars/cpp-macro.json'),
+  'source.cpp':                             () => import('../grammars/cpp.json'),
+  'source.cs':                              () => import('../grammars/csharp.json'),
+  'source.java':                            () => import('../grammars/java.json'),
+  'source.kotlin':                          () => import('../grammars/kotlin.json'),
+  'source.swift':                           () => import('../grammars/swift.json'),
+  'source.css':                             () => import('../grammars/css.json'),
+  'text.html.basic':                        () => import('../grammars/html.json'),
+  'text.haml':                              () => import('../grammars/haml.json'),
+  'text.xml':                               () => import('../grammars/xml.json'),
+  'source.graphql':                         () => import('../grammars/graphql.json'),
+  'source.shell':                           () => import('../grammars/shellscript.json'),
+  'source.lua':                             () => import('../grammars/lua.json'),
+  'source.yaml':                            () => import('../grammars/yaml.json'),
+  'source.ruby':                            () => import('../grammars/ruby.json'),
+  'source.json':                            () => import('../grammars/json.json'),
+  'source.php':                             () => import('../grammars/php.json'),
+  'source.r':                               () => import('../grammars/r.json'),
+  'source.dart':                            () => import('../grammars/dart.json'),
+  'source.scala':                           () => import('../grammars/scala.json'),
+  'source.css.scss':                        () => import('../grammars/scss.json'),
+  'source.css.less':                        () => import('../grammars/less.json'),
+  'text.html.derivative':                   () => import('../grammars/html-derivative.json'),
+  'markdown.vue.codeblock':                 () => import('../grammars/markdown-vue.json'),
+  'vue.directives':                         () => import('../grammars/vue-directives.json'),
+  'vue.interpolations':                     () => import('../grammars/vue-interpolations.json'),
+  'vue.sfc.style.variable.injection':       () => import('../grammars/vue-sfc-style-variable-injection.json'),
+  'text.html.vue':                          () => import('../grammars/vue.json'),
+  'source.css.postcss':                     () => import('../grammars/postcss.json'),
+  'source.svelte':                          () => import('../grammars/svelte.json'),
+  'source.json.comments':                   () => import('../grammars/jsonc.json'),
+  'source.toml':                            () => import('../grammars/toml.json'),
+  'text.html.markdown':                     () => import('../grammars/markdown.json'),
+  'source.fish':                            () => import('../grammars/fish.json'),
 }
 
 const LANG_ALIASES: Record<string, string> = {
@@ -146,7 +102,12 @@ async function initWasm(): Promise<void> {
   registry = new Registry({
     onigLib,
     theme: VTM_THEMES['dark-plus'].theme as never,
-    loadGrammar: async (scope: string) => (GRAMMAR_BY_SCOPE[scope] ?? null) as IRawGrammar | null,
+    loadGrammar: async (scope: string) => {
+      const loader = GRAMMAR_LOADERS[scope]
+      if (!loader) return null
+      const mod = await loader()
+      return (mod.default ?? mod) as IRawGrammar
+    },
   })
   colorMap = registry.getColorMap()
 }
@@ -203,7 +164,6 @@ function tokenizeRange(from: number, to: number): TokenizedLine[] {
 
     // Incremental: if state unchanged after the edit range, stop early
     if (i > from && oldStack && newStack.equals(oldStack)) {
-      // Slice to actual count tokenized
       return result
     }
   }

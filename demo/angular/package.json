@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "dev": "ng serve",
+    "start": "ng serve",
     "build": "ng build"
   },
   "dependencies": {

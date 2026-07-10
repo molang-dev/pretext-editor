@@ -14,6 +14,8 @@ import { EditorController } from '../controller/EditorController'
 
 // Worker URL: '../highlight.worker.js' is correct relative to dist/react/index.js (the bundle output)
 const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
+// Eagerly start the worker so WASM compiles in parallel with React initialization
+const eagerWorker = typeof Worker !== 'undefined' ? new Worker(WORKER_URL, { type: 'module' }) : null
 import type { EditorControllerState } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'
 import {
@@ -95,6 +97,7 @@ export const PretextEditor = forwardRef<
       binding,
       active,
       contextMenuItems,
+      worker: eagerWorker ?? undefined,
       workerUrl: WORKER_URL,
       theme,
     })

@@ -54,12 +54,12 @@ const mainConfig = defineConfig({
   },
 })
 
-// Worker bundle: bundles vscode-textmate + vscode-oniguruma + all grammars inline
+// Worker bundle: core logic inline, grammar files as separate chunks (lazy-loaded on demand)
 const workerConfig = defineConfig({
   entry: { 'highlight.worker': 'src/worker/highlight.worker.ts' },
   format: ['esm'],
   dts: false,
-  splitting: false,
+  splitting: true,
   clean: false,
   noExternal: ['vscode-textmate', 'vscode-oniguruma'],
 })
