@@ -646,6 +646,7 @@ export class EditorController {
     this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
     if (this.undoStack.length > 200) this.undoStack.shift()
 
+    let workerWillRepaint = false
     if (this.language && this.workerReady) {
       const oldLines = this.doc.lines
       const newLines = newDoc.lines
@@ -653,19 +654,23 @@ export class EditorController {
       const { removedCount, addedLines } = computeLineDelta(oldLines, newLines, fromLine)
       const epoch = ++this.tokenEpoch
 
-      if (this.tokenLines) {
-        this.tokenLines.splice(fromLine, removedCount, ...new Array(addedLines.length).fill([]))
-      } else {
+      if (!this.tokenLines) {
         this.tokenLines = new Array(newLines.length).fill([])
+      } else if (removedCount !== addedLines.length) {
+        // Line count changed (Enter / cross-line Backspace): must resize the array.
+        // For same-line-count edits keep the stale spans — they look correct until
+        // the worker responds, avoiding a white flash on the first repaint.
+        this.tokenLines.splice(fromLine, removedCount, ...new Array(addedLines.length).fill([]))
       }
 
       const visEnd = this.visibleLineEnd(newLines.length)
       const cb: TokenBatchCallback = (from, to, tl) => {
         if (this.tokenEpoch !== epoch) return
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
-        if (this.batchOverlapsViewport(from, to)) this.repaint()
+        if (this.batchOverlapsViewport(from, to)) this.notifyAndRepaint()
       }
       this.tokenizer.update(fromLine, removedCount, addedLines, cb, visEnd)
+      workerWillRepaint = true
     }
 
     this.doc = newDoc
@@ -674,7 +679,7 @@ export class EditorController {
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
-    this.notifyAndRepaint()
+    if (!workerWillRepaint) this.notifyAndRepaint()
   }
 
   // ---- Internal: Worker-backed tokenization ----
