@@ -35,6 +35,10 @@ export class WorkerTokenizer {
     this.worker?.postMessage({ type: 'setLang', lang })
   }
 
+  setTheme(themeName: string): void {
+    this.worker?.postMessage({ type: 'setTheme', themeName })
+  }
+
   update(
     fromLine: number,
     removedCount: number,

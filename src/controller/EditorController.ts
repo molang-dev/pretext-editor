@@ -90,6 +90,7 @@ export interface EditorControllerOptions {
   active?: boolean
   contextMenuItems?: (builtins: ContextMenuBuiltins) => ContextMenuItem[]
   workerUrl?: URL | string
+  theme?: string
 }
 
 export interface EditorControllerState {
@@ -172,6 +173,7 @@ export class EditorController {
   binding: IEditorBinding | undefined
   active: boolean
   contextMenuItemsFn: ((builtins: ContextMenuBuiltins) => ContextMenuItem[]) | undefined
+  private theme = 'dark-plus'
 
   // Search state (public so React wrapper can read via getState())
   searchState: SearchState = { ...INITIAL_SEARCH_STATE }
@@ -214,7 +216,9 @@ export class EditorController {
     this.active = options.active ?? false
     this.contextMenuItemsFn = options.contextMenuItems
     this.lastExternalValue = options.value
+    this.theme = options.theme ?? 'dark-plus'
     this.tokenizer.init(options.workerUrl)
+    if (this.theme !== 'dark-plus') this.tokenizer.setTheme(this.theme)
   }
 
   get lineHeight(): number {
@@ -334,6 +338,12 @@ export class EditorController {
       }
     }
     if (options.contextMenuItems !== undefined) this.contextMenuItemsFn = options.contextMenuItems
+    if (options.theme !== undefined && options.theme !== this.theme) {
+      this.theme = options.theme
+      this.tokenizer.setTheme(this.theme)
+      if (this.workerReady) this.triggerFullTokenize()
+      this.repaint()
+    }
     if (langChanged && this.language) {
       this.tokenLines = undefined
       this.workerReady = false
@@ -838,6 +848,7 @@ export class EditorController {
       cursorVisible: this.cursorVisible,
       searchHighlights: this.searchState.isOpen ? this.searchMatches : undefined,
       searchCurrentIdx: this.searchState.currentIndex,
+      theme: this.theme,
     }).gutterWidth
   }
 

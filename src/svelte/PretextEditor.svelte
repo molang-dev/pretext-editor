@@ -20,6 +20,7 @@
   export let tabSize: number = DEFAULT_TAB_SIZE;
   export let binding: IEditorBinding | undefined = undefined;
   export let active: boolean = false;
+  export let theme: string = 'dark-plus';
   export let contextMenuItems:
     | ((builtins: ContextMenuBuiltins) => ContextMenuItem[])
     | undefined = undefined;
@@ -122,6 +123,7 @@
       active,
       contextMenuItems,
       workerUrl: WORKER_URL,
+      theme,
     });
     ctrl.mount(containerEl, canvasEl, textareaEl, onStateChange);
     window.addEventListener('pointerdown', onWindowPointerDown, { capture: true });
@@ -137,7 +139,7 @@
     ctrl.setValue(value);
   }
   $: if (ctrl) {
-    ctrl.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems });
+    ctrl.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme });
   }
 
   // Expose handle methods

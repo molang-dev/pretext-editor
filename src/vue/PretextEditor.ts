@@ -56,6 +56,7 @@ export const PretextEditor = defineComponent({
     active: { type: Boolean, default: false },
     contextMenuItems: { type: Function as PropType<(builtins: ContextMenuBuiltins) => ContextMenuItem[]>, default: undefined },
     renderSearchBar: { type: Function as PropType<(state: SearchState, actions: SearchActions) => any>, default: undefined },
+    theme: { type: String, default: 'dark-plus' },
   },
   emits: ['update:value'],
   setup(
@@ -69,6 +70,7 @@ export const PretextEditor = defineComponent({
       active: boolean
       contextMenuItems?: (builtins: ContextMenuBuiltins) => ContextMenuItem[]
       renderSearchBar?: (state: SearchState, actions: SearchActions) => any
+      theme: string
     },
     { emit, expose }: SetupContext<{ 'update:value': (value: string) => void }>,
   ) {
@@ -143,6 +145,7 @@ export const PretextEditor = defineComponent({
         active: props.active,
         contextMenuItems: props.contextMenuItems as any,
         workerUrl: WORKER_URL,
+        theme: props.theme,
       })
       ctrl.mount(containerRef.value!, canvasRef.value!, textareaRef.value!, onStateChange)
       window.addEventListener('pointerdown', onWindowPointerDown, { capture: true })
@@ -155,12 +158,13 @@ export const PretextEditor = defineComponent({
     })
 
     watch(() => props.value, (v: string) => ctrl?.setValue(v))
-    watch([() => props.language, () => props.fontSize, () => props.fontFamily, () => props.tabSize], () => {
+    watch([() => props.language, () => props.fontSize, () => props.fontFamily, () => props.tabSize, () => props.theme], () => {
       ctrl?.updateOptions({
         language: props.language,
         fontSize: props.fontSize,
         fontFamily: props.fontFamily,
         tabSize: props.tabSize,
+        theme: props.theme,
       })
     })
 

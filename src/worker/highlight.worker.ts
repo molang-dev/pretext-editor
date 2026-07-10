@@ -49,6 +49,8 @@ import toml from '../grammars/toml.json'
 import markdown from '../grammars/markdown.json'
 import fish from '../grammars/fish.json'
 import darkPlusRaw from '../themes/dark-plus.json'
+import draculaRaw from '../themes/dracula.json'
+import githubLightRaw from '../themes/github-light.json'
 import grammarIndex from '../grammars/index.json'
 
 const GRAMMAR_BY_SCOPE: Record<string, unknown> = {
@@ -107,17 +109,21 @@ const LANG_ALIASES: Record<string, string> = {
 }
 
 // vscode-textmate expects settings[] not tokenColors[]
-const VTM_THEME = {
-  name: darkPlusRaw.name,
-  settings: [
-    { settings: { foreground: '#D4D4D4', background: '#1E1E1E' } },
-    ...darkPlusRaw.tokenColors,
-  ],
+function toVtmTheme(raw: { name?: string; tokenColors: unknown[]; colors?: Record<string, string> }) {
+  const fg = raw.colors?.['editor.foreground'] ?? '#D4D4D4'
+  const bg = raw.colors?.['editor.background'] ?? '#1E1E1E'
+  return { name: raw.name, settings: [{ settings: { foreground: fg, background: bg } }, ...raw.tokenColors] }
+}
+
+const VTM_THEMES: Record<string, { theme: unknown; defaultFg: string }> = {
+  'dark-plus':    { theme: toVtmTheme(darkPlusRaw as any),    defaultFg: '#D4D4D4' },
+  'dracula':      { theme: toVtmTheme(draculaRaw as any),      defaultFg: '#F8F8F2' },
+  'github-light': { theme: toVtmTheme(githubLightRaw as any), defaultFg: '#24292e' },
 }
 
 const FOREGROUND_MASK = 0xFF8000
 const FOREGROUND_SHIFT = 15
-const DEFAULT_FG = '#D4D4D4'
+let defaultFg = '#D4D4D4'
 
 // ---- Worker state ----
 let registry: Registry | null = null
@@ -139,10 +145,18 @@ async function initWasm(): Promise<void> {
   const onigLib = Promise.resolve({ createOnigScanner, createOnigString })
   registry = new Registry({
     onigLib,
-    theme: VTM_THEME as never,
+    theme: VTM_THEMES['dark-plus'].theme as never,
     loadGrammar: async (scope: string) => (GRAMMAR_BY_SCOPE[scope] ?? null) as IRawGrammar | null,
   })
   colorMap = registry.getColorMap()
+}
+
+function handleSetTheme(themeName: string): void {
+  const entry = VTM_THEMES[themeName]
+  if (!registry || !entry) return
+  registry.setTheme(entry.theme as never)
+  colorMap = registry.getColorMap()
+  defaultFg = entry.defaultFg
 }
 
 async function handleSetLang(lang: string): Promise<void> {
@@ -177,7 +191,7 @@ function tokenizeRange(from: number, to: number): TokenizedLine[] {
       const end = j + 1 < n ? raw[2 * j + 2] : lines[i].length
       if (start >= end) continue
       const fgIdx = (raw[2 * j + 1] & FOREGROUND_MASK) >>> FOREGROUND_SHIFT
-      tl.push({ text: lines[i].slice(start, end), color: colorMap[fgIdx] ?? DEFAULT_FG })
+      tl.push({ text: lines[i].slice(start, end), color: colorMap[fgIdx] ?? defaultFg })
     }
 
     const newStack = res.ruleStack
@@ -240,6 +254,8 @@ self.addEventListener('message', (e: MessageEvent) => {
 function dispatch(msg: { type: string; [k: string]: unknown }): void {
   if (msg.type === 'setLang') {
     handleSetLang(msg.lang as string)
+  } else if (msg.type === 'setTheme') {
+    handleSetTheme(msg.themeName as string)
   } else if (msg.type === 'update') {
     applyEdit(msg.fromLine as number, msg.removedCount as number, msg.addedLines as string[])
     currentReqId = msg.reqId as number

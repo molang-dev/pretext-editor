@@ -47,6 +47,7 @@ export interface PretextEditorProps {
     builtins: import('../controller/EditorController').ContextMenuBuiltins,
   ) => import('../controller/EditorController').ContextMenuItem[]
   renderSearchBar?: (state: SearchState, actions: SearchActions) => React.ReactNode
+  theme?: string
 }
 
 export const PretextEditor = forwardRef<
@@ -66,6 +67,7 @@ export const PretextEditor = forwardRef<
     active,
     contextMenuItems,
     renderSearchBar,
+    theme,
   }: PretextEditorProps,
   ref,
 ): React.JSX.Element {
@@ -95,6 +97,7 @@ export const PretextEditor = forwardRef<
       active,
       contextMenuItems,
       workerUrl: WORKER_URL,
+      theme,
     })
     ctrl.mount(containerRef.current!, canvasRef.current!, textareaRef.current!, onStateChange)
     ctrlRef.current = ctrl
@@ -104,8 +107,8 @@ export const PretextEditor = forwardRef<
 
   // Sync props into controller
   useLayoutEffect(() => {
-    ctrlRef.current?.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems })
-  }, [language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems])
+    ctrlRef.current?.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme })
+  }, [language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme])
 
   useLayoutEffect(() => {
     ctrlRef.current?.setValue(value)

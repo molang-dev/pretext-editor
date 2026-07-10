@@ -12,17 +12,49 @@ export const PADDING_LEFT = 52
 export const PADDING_TOP = 8
 export const FONT_SIZE_TO_LINE_HEIGHT = (size: number): number => size + 8
 
-const BG = '#1e1e1e'
-const FG = '#d4d4d4'
-const GUTTER_BG = '#1e1e1e'
-const GUTTER_FG = '#6e7681'
-const CURSOR_COLOR = '#d4d4d4'
-const CURRENT_LINE_BG = 'rgba(255,255,255,0.04)'
-const SELECTION_BG = '#264f78'
-const INDENT_GUIDE = 'rgba(255,255,255,0.1)'
-const INDENT_GUIDE_ACTIVE = 'rgba(255,255,255,0.3)'
-const SEARCH_MATCH_BG = 'rgba(220,200,60,0.28)'
-const SEARCH_CURRENT_BG = 'rgba(255,140,0,0.5)'
+export type EditorThemeColors = {
+  bg: string
+  fg: string
+  gutterBg: string
+  gutterFg: string
+  cursorColor: string
+  currentLineBg: string
+  selectionBg: string
+  indentGuide: string
+  indentGuideActive: string
+  searchMatchBg: string
+  searchCurrentBg: string
+}
+
+export const BUILT_IN_THEMES: Record<string, EditorThemeColors> = {
+  'dark-plus': {
+    bg: '#1e1e1e', fg: '#d4d4d4',
+    gutterBg: '#1e1e1e', gutterFg: '#6e7681',
+    cursorColor: '#d4d4d4',
+    currentLineBg: 'rgba(255,255,255,0.04)',
+    selectionBg: '#264f78',
+    indentGuide: 'rgba(255,255,255,0.1)', indentGuideActive: 'rgba(255,255,255,0.3)',
+    searchMatchBg: 'rgba(220,200,60,0.28)', searchCurrentBg: 'rgba(255,140,0,0.5)',
+  },
+  'dracula': {
+    bg: '#282A36', fg: '#F8F8F2',
+    gutterBg: '#282A36', gutterFg: '#6272A4',
+    cursorColor: '#F8F8F2',
+    currentLineBg: 'rgba(255,255,255,0.04)',
+    selectionBg: '#44475A',
+    indentGuide: 'rgba(255,255,255,0.08)', indentGuideActive: 'rgba(255,255,255,0.25)',
+    searchMatchBg: 'rgba(255,184,108,0.3)', searchCurrentBg: 'rgba(255,121,198,0.5)',
+  },
+  'github-light': {
+    bg: '#ffffff', fg: '#24292e',
+    gutterBg: '#ffffff', gutterFg: '#8a8a8a',
+    cursorColor: '#24292e',
+    currentLineBg: 'rgba(0,0,0,0.04)',
+    selectionBg: '#b3d7ff',
+    indentGuide: 'rgba(0,0,0,0.1)', indentGuideActive: 'rgba(0,0,0,0.3)',
+    searchMatchBg: 'rgba(200,160,0,0.2)', searchCurrentBg: 'rgba(255,140,0,0.4)',
+  },
+}
 
 export interface RenderOptions {
   canvas: HTMLCanvasElement
@@ -38,6 +70,7 @@ export interface RenderOptions {
   cursorVisible?: boolean
   searchHighlights?: SearchMatch[]
   searchCurrentIdx?: number
+  theme?: string
 }
 
 /** Count leading-whitespace depth in spaces (tabs expand to tabSize) */
@@ -170,9 +203,11 @@ export function renderCanvas({
   cursorVisible = true,
   searchHighlights,
   searchCurrentIdx = -1,
+  theme,
 }: RenderOptions): { gutterWidth: number } {
   const ctx = canvas.getContext('2d')
   if (!ctx) return { gutterWidth: PADDING_LEFT }
+  const tc = BUILT_IN_THEMES[theme ?? 'dark-plus'] ?? BUILT_IN_THEMES['dark-plus']
 
   const dpr = window.devicePixelRatio || 1
   const w = canvas.width / dpr
@@ -183,7 +218,7 @@ export function renderCanvas({
   ctx.save()
   ctx.scale(dpr, dpr)
 
-  ctx.fillStyle = BG
+  ctx.fillStyle = tc.bg
   ctx.fillRect(0, 0, w, h)
 
   const firstLine = Math.max(0, Math.floor(scrollTop / lineHeight) - 1)
@@ -230,7 +265,7 @@ export function renderCanvas({
 
     // Current line background — only when no active selection
     if (i === cursor.line && !hasSel) {
-      ctx.fillStyle = CURRENT_LINE_BG
+      ctx.fillStyle = tc.currentLineBg
       ctx.fillRect(0, y, w, lineHeight)
     }
 
@@ -244,7 +279,7 @@ export function renderCanvas({
         const colE = i === m.head.line ? m.head.col : lineText.length
         const xS = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
         const xE = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
-        ctx.fillStyle = mi === searchCurrentIdx ? SEARCH_CURRENT_BG : SEARCH_MATCH_BG
+        ctx.fillStyle = mi === searchCurrentIdx ? tc.searchCurrentBg : tc.searchMatchBg
         ctx.fillRect(xS, y, Math.max(xE - xS, 2), lineHeight)
       }
     }
@@ -257,7 +292,7 @@ export function renderCanvas({
     const maxG = rl === -1 ? el : rl
     for (let g = 1; g <= maxG; g++) {
       const gx = Math.floor(gutterWidth + (g - 1) * indentUnit * spaceW)
-      ctx.fillStyle = g === activeGuideLevel ? INDENT_GUIDE_ACTIVE : INDENT_GUIDE
+      ctx.fillStyle = g === activeGuideLevel ? tc.indentGuideActive : tc.indentGuide
       ctx.fillRect(gx, y, 1, lineHeight)
     }
 
@@ -273,7 +308,7 @@ export function renderCanvas({
           ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
           : w
 
-      ctx.fillStyle = SELECTION_BG
+      ctx.fillStyle = tc.selectionBg
       ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
     }
 
@@ -289,16 +324,16 @@ export function renderCanvas({
         i === exE.line
           ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
           : w
-      ctx.fillStyle = SELECTION_BG
+      ctx.fillStyle = tc.selectionBg
       ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
     }
 
     // Gutter
-    ctx.fillStyle = GUTTER_BG
+    ctx.fillStyle = tc.gutterBg
     ctx.fillRect(0, y, gutterWidth, lineHeight)
 
     // Line number
-    ctx.fillStyle = i === cursor.line ? FG : GUTTER_FG
+    ctx.fillStyle = i === cursor.line ? tc.fg : tc.gutterFg
     ctx.textAlign = 'right'
     ctx.textBaseline = 'top'
     ctx.fillText(String(i + 1), gutterWidth - 2 * spaceW, y + Math.floor((lineHeight - fontSize) / 2))
@@ -327,7 +362,7 @@ export function renderCanvas({
         fillTextWithTabs(ctx, lineText.slice(charOff), xOff, textY, tabSize)
       }
     } else {
-      ctx.fillStyle = FG
+      ctx.fillStyle = tc.fg
       fillTextWithTabs(ctx, lineText, gutterWidth, textY, tabSize)
     }
 
@@ -335,7 +370,7 @@ export function renderCanvas({
     if (cursorVisible && i === cursor.line) {
       const textBefore = lineText.slice(0, cursor.col)
       const cursorX = gutterWidth + measureWithTabs(ctx, textBefore, tabSize)
-      ctx.fillStyle = CURSOR_COLOR
+      ctx.fillStyle = tc.cursorColor
       ctx.fillRect(Math.floor(cursorX), y + 2, 2, lineHeight - 4)
     }
 
@@ -344,7 +379,7 @@ export function renderCanvas({
       for (const slot of extraCursors ?? []) {
         if (i !== slot.head.line) continue
         const xExtra = gutterWidth + measureWithTabs(ctx, lineText.slice(0, slot.head.col), tabSize)
-        ctx.fillStyle = CURSOR_COLOR
+        ctx.fillStyle = tc.cursorColor
         ctx.fillRect(Math.floor(xExtra), y + 2, 2, lineHeight - 4)
       }
     }
