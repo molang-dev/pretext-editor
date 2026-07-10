@@ -197,6 +197,7 @@ export class EditorController {
   private workerReady = false
   private gutterWidth = PADDING_LEFT
   private lastRenderOptions: import('../core/renderer').RenderOptions | null = null
+  private contentEl: HTMLElement | null = null
 
   // DOM refs
   private container: HTMLDivElement | null = null
@@ -233,11 +234,13 @@ export class EditorController {
     canvas: HTMLCanvasElement,
     textarea: HTMLTextAreaElement,
     onStateChange: () => void,
+    contentEl: HTMLElement,
   ): void {
     this.container = container
     this.canvas = canvas
     this.textarea = textarea
     this.onStateChange = onStateChange
+    this.contentEl = contentEl
 
     // Bind event handlers
     canvas.addEventListener('pointerdown', this.onPointerDown)
@@ -343,7 +346,6 @@ export class EditorController {
       this.theme = options.theme
       this.tokenizer.setTheme(this.theme)
       if (this.workerReady) this.triggerFullTokenize()
-      this.repaint()
     }
     if (langChanged && this.language) {
       this.tokenLines = undefined
@@ -353,6 +355,7 @@ export class EditorController {
         this.triggerFullTokenize()
       })
     }
+    this.repaint()
   }
 
   getState(): EditorControllerState {
@@ -651,11 +654,11 @@ export class EditorController {
         this.tokenLines = new Array(newLines.length).fill([])
       }
 
-      const visEnd = this.visibleLineEnd()
+      const visEnd = this.visibleLineEnd(newLines.length)
       const cb: TokenBatchCallback = (from, to, tl) => {
         if (this.tokenEpoch !== epoch) return
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
-        this.repaint()
+        if (this.batchOverlapsViewport(from, to)) this.repaint()
       }
       this.tokenizer.update(fromLine, removedCount, addedLines, cb, visEnd)
     }
@@ -671,14 +674,20 @@ export class EditorController {
 
   // ---- Internal: Worker-backed tokenization ----
 
-  private visibleLineEnd(): number {
+  private visibleLineEnd(lineCount = this.doc.lines.length): number {
     if (!this.container) return 0
     const scrollTop = this.container.scrollTop
     const h = this.container.clientHeight
-    return Math.min(
-      this.doc.lines.length,
-      Math.ceil((scrollTop + h - PADDING_TOP) / this.lineHeight) + 1,
-    )
+    return Math.min(lineCount, Math.ceil((scrollTop + h - PADDING_TOP) / this.lineHeight) + 1)
+  }
+
+  private batchOverlapsViewport(from: number, to: number): boolean {
+    if (!this.container) return true
+    const scrollTop = this.container.scrollTop
+    const h = this.container.clientHeight
+    const visFirst = Math.floor((scrollTop - PADDING_TOP) / this.lineHeight)
+    const visLast = Math.ceil((scrollTop + h - PADDING_TOP) / this.lineHeight)
+    return to > visFirst && from <= visLast
   }
 
   private triggerFullTokenize(): void {
@@ -689,7 +698,7 @@ export class EditorController {
     this.tokenizer.update(0, 0, lines, (from, to, tl) => {
       if (this.tokenEpoch !== epoch) return
       for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
-      this.repaint()
+      if (this.batchOverlapsViewport(from, to)) this.repaint()
     }, visEnd)
   }
 
@@ -707,7 +716,7 @@ export class EditorController {
     const BATCHES = [200, 400, 800, 1600]
     let shown = 0
     for (let bi = 0; shown < allLines.length; bi++) {
-      const size = bi < BATCHES.length ? BATCHES[bi] : 2000
+      const size = BATCHES[Math.min(bi, BATCHES.length - 1)]
       shown = Math.min(shown + size, allLines.length)
       this.doc = { lines: allLines.slice(0, shown), cursor: { line: 0, col: 0 } }
       this.repaint()
@@ -726,7 +735,7 @@ export class EditorController {
       this.tokenizer.update(0, 0, allLines, (from, to, tl) => {
         if (this.tokenEpoch !== epoch) return
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
-        this.repaint()
+        if (this.batchOverlapsViewport(from, to)) this.repaint()
       }, this.visibleLineEnd())
     }
 
@@ -829,6 +838,12 @@ export class EditorController {
 
   // ---- Internal: Canvas repaint ----
 
+  private updateContentHeight(): void {
+    if (!this.contentEl) return
+    const h = Math.max(1, this.doc.lines.length) * this.lineHeight + PADDING_TOP * 2
+    this.contentEl.style.height = h + 'px'
+  }
+
   private repaint = (): void => {
     const canvas = this.canvas
     const container = this.container
@@ -842,6 +857,8 @@ export class EditorController {
       canvas.width = w
       canvas.height = h
     }
+
+    this.updateContentHeight()
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
     const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines

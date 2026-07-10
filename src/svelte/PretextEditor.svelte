@@ -2,7 +2,6 @@
   import { onMount, onDestroy, createEventDispatcher, tick } from 'svelte';
   import { EditorController } from '../controller/EditorController';
   import {
-    FONT_SIZE_TO_LINE_HEIGHT,
     DEFAULT_FONT_SIZE,
     DEFAULT_FONT_FAMILY,
     DEFAULT_TAB_SIZE,
@@ -29,6 +28,7 @@
 
   // DOM refs
   let containerEl: HTMLDivElement;
+  let contentEl: HTMLDivElement;
   let canvasEl: HTMLCanvasElement;
   let textareaEl: HTMLTextAreaElement;
   let ctxMenuEl: HTMLDivElement;
@@ -38,7 +38,6 @@
   // Local state
   let menuPos: { x: number; y: number } | null = null;
   let resolvedMenuItems: ContextMenuItem[] = [];
-  let docLineCount = 1;
 
   // Search state
   let searchState: SearchState = {
@@ -47,9 +46,6 @@
     showReplace: false, replaceQuery: '', preserveCase: false,
     focusToken: 0,
   };
-
-  $: lineHeight = FONT_SIZE_TO_LINE_HEIGHT(fontSize);
-  $: totalHeight = Math.max(1, docLineCount) * lineHeight + 16;
 
   // Search derived values
   $: hasError = !!searchState.regexError;
@@ -69,7 +65,6 @@
     const s = ctrl.getState();
     menuPos = s.menuPos;
     resolvedMenuItems = s.menuItems;
-    docLineCount = s.doc.lines.length;
     searchState = s.searchState;
 
     // Auto-focus find input when search first opens, or when Ctrl+F re-triggers
@@ -125,7 +120,7 @@
       workerUrl: WORKER_URL,
       theme,
     });
-    ctrl.mount(containerEl, canvasEl, textareaEl, onStateChange);
+    ctrl.mount(containerEl, canvasEl, textareaEl, onStateChange, contentEl);
     window.addEventListener('pointerdown', onWindowPointerDown, { capture: true });
   });
 
@@ -240,7 +235,7 @@
     on:click={onContainerClick}
     on:keydown={onContainerKeyDown}
   >
-    <div class="pteic-editor-content" style="height:{totalHeight}px">
+    <div class="pteic-editor-content" bind:this={contentEl}>
       <canvas
         bind:this={canvasEl}
         class="pteic-editor-canvas"

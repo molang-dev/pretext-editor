@@ -15,7 +15,6 @@ import {
 } from '@angular/core'
 import { EditorController } from '../controller/EditorController'
 import {
-  FONT_SIZE_TO_LINE_HEIGHT,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_TAB_SIZE,
@@ -31,7 +30,7 @@ import type { ContextMenuItem, IEditorBinding, ContextMenuBuiltins } from '../co
     <div #container
       style="position:relative;overflow:auto;height:100%;width:100%;outline:none;cursor:text"
       (click)="onContainerClick($event)">
-      <div [style.height.px]="totalHeight" style="position:relative">
+      <div #content style="position:relative">
         <canvas #canvas style="position:sticky;top:0;display:block;width:100%"></canvas>
       </div>
       @if (menuPos) {
@@ -77,12 +76,12 @@ export class PretextEditorComponent implements AfterViewInit, OnDestroy, OnChang
   @Output() valueChange = new EventEmitter<string>()
 
   @ViewChild('container') containerRef!: ElementRef<HTMLDivElement>
+  @ViewChild('content') contentRef!: ElementRef<HTMLDivElement>
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>
   @ViewChild('textarea') textareaRef!: ElementRef<HTMLTextAreaElement>
 
   menuPos: { x: number; y: number } | null = null
   resolvedMenuItems: ContextMenuItem[] = []
-  totalHeight = 0
 
   private ctrl!: EditorController
 
@@ -112,9 +111,9 @@ export class PretextEditorComponent implements AfterViewInit, OnDestroy, OnChang
           const s = this.ctrl.getState()
           this.menuPos = s.menuPos
           this.resolvedMenuItems = s.menuItems
-          this.totalHeight = Math.max(1, s.doc.lines.length) * FONT_SIZE_TO_LINE_HEIGHT(this.fontSize) + 16
           this.cdr.detectChanges()
         },
+        this.contentRef.nativeElement,
       )
     })
   }

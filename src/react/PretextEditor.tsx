@@ -17,8 +17,6 @@ const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
 import type { EditorControllerState } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'
 import {
-  PADDING_TOP,
-  FONT_SIZE_TO_LINE_HEIGHT,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_TAB_SIZE,
@@ -72,6 +70,7 @@ export const PretextEditor = forwardRef<
   ref,
 ): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const ctrlRef = useRef<EditorController | null>(null)
@@ -99,7 +98,7 @@ export const PretextEditor = forwardRef<
       workerUrl: WORKER_URL,
       theme,
     })
-    ctrl.mount(containerRef.current!, canvasRef.current!, textareaRef.current!, onStateChange)
+    ctrl.mount(containerRef.current!, canvasRef.current!, textareaRef.current!, onStateChange, contentRef.current!)
     ctrlRef.current = ctrl
     return () => ctrl.destroy()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -124,8 +123,6 @@ export const PretextEditor = forwardRef<
   useImperativeHandle(ref, () => ctrlRef.current?.getHandle() ?? ({} as any), [])
 
   const state = stateRef.current
-  const lineHeight = FONT_SIZE_TO_LINE_HEIGHT(fontSize)
-  const totalHeight = state ? Math.max(1, state.doc.lines.length) * lineHeight + PADDING_TOP * 2 : 0
 
   const searchActions: SearchActions = {
     setQuery: (q) => ctrlRef.current?.setSearchQuery(q),
@@ -163,7 +160,7 @@ export const PretextEditor = forwardRef<
           if (e.target === containerRef.current) textareaRef.current?.focus({ preventScroll: true })
         }}
       >
-        <div className="pteic-editor-content" style={{ height: totalHeight }}>
+        <div ref={contentRef} className="pteic-editor-content">
           <canvas ref={canvasRef} className="pteic-editor-canvas" />
         </div>
 

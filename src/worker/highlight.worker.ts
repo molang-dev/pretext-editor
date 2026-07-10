@@ -233,7 +233,7 @@ async function tokenizeBatches(reqId: number, fromLine: number, visibleTo: numbe
   let bi = 0
   while (from < lines.length) {
     if (currentReqId !== reqId) return
-    const size = bi < BATCH_SIZES.length ? BATCH_SIZES[bi++] : 2000
+    const size = BATCH_SIZES[Math.min(bi++, BATCH_SIZES.length - 1)]
     const to = Math.min(from + size, lines.length)
     const result = tokenizeRange(from, to)
     const actualTo = from + result.length

@@ -1,7 +1,6 @@
-import { defineComponent, h, ref, onMounted, onBeforeUnmount, watch, reactive, computed, type SetupContext, type PropType } from 'vue'
+import { defineComponent, h, ref, onMounted, onBeforeUnmount, watch, reactive, type SetupContext, type PropType } from 'vue'
 import { EditorController } from '../controller/EditorController'
 import {
-  FONT_SIZE_TO_LINE_HEIGHT,
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_TAB_SIZE,
@@ -75,6 +74,7 @@ export const PretextEditor = defineComponent({
     { emit, expose }: SetupContext<{ 'update:value': (value: string) => void }>,
   ) {
     const containerRef = ref<HTMLDivElement>()
+    const contentRef = ref<HTMLDivElement>()
     const canvasRef = ref<HTMLCanvasElement>()
     const textareaRef = ref<HTMLTextAreaElement>()
     const ctxMenuRef = ref<HTMLDivElement>()
@@ -103,9 +103,6 @@ export const PretextEditor = defineComponent({
         focusToken: 0,
       },
     })
-
-    const lineHeight = computed(() => FONT_SIZE_TO_LINE_HEIGHT(props.fontSize))
-    const totalHeight = computed(() => Math.max(1, state.doc.lines.length) * lineHeight.value + 16)
 
     const onStateChange = () => {
       const s = ctrl!.getState()
@@ -147,7 +144,7 @@ export const PretextEditor = defineComponent({
         workerUrl: WORKER_URL,
         theme: props.theme,
       })
-      ctrl.mount(containerRef.value!, canvasRef.value!, textareaRef.value!, onStateChange)
+      ctrl.mount(containerRef.value!, canvasRef.value!, textareaRef.value!, onStateChange, contentRef.value!)
       window.addEventListener('pointerdown', onWindowPointerDown, { capture: true })
     })
 
@@ -261,7 +258,7 @@ export const PretextEditor = defineComponent({
           : `${ss.currentIndex + 1} of ${ss.matchCount > 999 ? '999+' : ss.matchCount}`
 
       const children: any[] = [
-        h('div', { class: 'pteic-editor-content', style: { height: totalHeight.value + 'px' } }, [
+        h('div', { ref: contentRef, class: 'pteic-editor-content' }, [
           h('canvas', { ref: canvasRef, class: 'pteic-editor-canvas' }),
         ]),
       ]
