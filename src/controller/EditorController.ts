@@ -119,6 +119,7 @@ type Snapshot = { doc: Doc; selAnchor: Cursor | null; extraCursors: CursorSlot[]
 
 // ---- Helpers ----
 
+const debug = true
 
 const LINE_COMMENT: Record<string, string> = {
   typescript: '//', tsx: '//', javascript: '//', jsx: '//',
@@ -887,7 +888,8 @@ export class EditorController {
     this.updateContentHeight()
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
-const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
+    if (debug) console.log(`[repaint] selAnchor=${JSON.stringify(this.selAnchor)} cursor=${JSON.stringify(this.doc.cursor)} sel=${JSON.stringify(sel)}`)
+    const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
     this.tokenLinesPatch = null
 
     const opts: import('../core/renderer').RenderOptions = {
@@ -1070,7 +1072,8 @@ const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!(e.buttons & 1)) return
-if (this.columnDrag !== null) {
+    if (debug) console.log(`[drag] buttons=${e.buttons} dragAnchor=${JSON.stringify(this.dragAnchor)} columnDrag=${this.columnDrag !== null}`)
+    if (this.columnDrag !== null) {
       const pos = this.cursorFromPointer(e)
       const { anchorLine, anchorCol } = this.columnDrag
       this.buildColumnSelection(anchorLine, anchorCol, pos.line, pos.col)
@@ -1080,7 +1083,8 @@ if (this.columnDrag !== null) {
     const newHead = this.cursorFromPointer(e)
     this.selAnchor = this.dragAnchor
     this.doc = { ...this.doc, cursor: newHead }
-this.notifyAndRepaint()
+    if (debug) console.log(`[drag] newHead=${JSON.stringify(newHead)} selAnchor=${JSON.stringify(this.selAnchor)}`)
+    this.notifyAndRepaint()
     this.lastDragEvent = e
     this.updateAutoScroll(e)
   }

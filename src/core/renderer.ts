@@ -74,6 +74,8 @@ export interface RenderOptions {
   singleLine?: number
 }
 
+const debug = true
+
 /** Count leading-whitespace depth in spaces (tabs expand to tabSize) */
 function indentDepth(text: string, tabSize: number): number {
   let depth = 0
@@ -266,6 +268,7 @@ export function renderCanvas({
 
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
+  if (debug && hasSel) console.log(`[render] hasSel=true selStart=${selStart.line} selEnd=${selEnd.line} firstLine=${firstLine} lastLine=${lastLine}`)
   // Clip search highlights to the visible line range using binary search.
   // Matches are sorted by anchor.line (regex exec is left-to-right), so we can
   // find the sub-array that overlaps [firstLine, lastLine] in O(log n).
