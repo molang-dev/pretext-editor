@@ -225,15 +225,16 @@ async function tokenizeBatches(reqId: number, fromLine: number, visFrom: number,
 
     const pEnd = latestPriorityEnd
     if (pEnd > from) {
-      // User scrolled ahead — rush there in one burst (worker doesn't block main thread)
-      const to = Math.min(lines.length, pEnd)
+      // User scrolled ahead — advance toward priority end one batch at a time so
+      // viewport messages are processed between batches.
+      const size = BATCH_SIZES[Math.min(bi++, BATCH_SIZES.length - 1)]
+      const to = Math.min(from + size, pEnd, lines.length)
       const result = tokenizeRange(from, to)
       const actualTo = from + result.length
       if (currentReqId !== reqId) return
       self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
       if (result.length < to - from) break
-      from = to
-      bi = 0
+      from = actualTo
       await new Promise<void>(r => setTimeout(r, 0))
       continue
     }
@@ -292,10 +293,13 @@ function dispatch(msg: { type: string; [k: string]: unknown }): void {
     const N = visTo - visFrom
     const previewFrom = Math.max(currentFromLine, Math.max(0, visFrom - N))
     const previewTo = Math.min(lines.length, visTo + N)
-    if (previewFrom < lines.length && (previewFrom === 0 || lineEndStacks[previewFrom - 1] === null)) {
-      const result = tokenizeRangePreview(previewFrom, previewTo)
+    // Find first line in range not yet sequentially tokenized, preview from there.
+    let previewStart = previewFrom
+    while (previewStart < previewTo && lineEndStacks[previewStart] !== null) previewStart++
+    if (previewStart < previewTo) {
+      const result = tokenizeRangePreview(previewStart, previewTo)
       if (result.length > 0) {
-        self.postMessage({ type: 'batch', reqId: currentReqId, from: previewFrom, to: previewFrom + result.length, tokenLines: result })
+        self.postMessage({ type: 'batch', reqId: currentReqId, from: previewStart, to: previewStart + result.length, tokenLines: result })
       }
     }
   }
