@@ -690,7 +690,6 @@ export class EditorController {
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
-    this.scrollCursorIntoView()
     if (!workerWillRepaint) this.notifyAndRepaint()
   }
 
@@ -714,7 +713,10 @@ export class EditorController {
     const h = this.container.clientHeight
     const visFirst = Math.floor((scrollTop - PADDING_TOP) / this.lineHeight)
     const visLast = Math.ceil((scrollTop + h - PADDING_TOP) / this.lineHeight)
-    return to > visFirst && from <= visLast
+    if (to > visFirst && from <= visLast) return true
+    // Also repaint if the cursor is in this batch; scrollCursorIntoView will bring it into view.
+    const cursorLine = this.doc.cursor.line
+    return cursorLine >= from && cursorLine < to
   }
 
   private triggerFullTokenize(): void {
