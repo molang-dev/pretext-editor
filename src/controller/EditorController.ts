@@ -1015,6 +1015,11 @@ export class EditorController {
       this.extraCursors = []
       this.selAnchor = this.selAnchor ?? this.doc.cursor
       this.doc = { ...this.doc, cursor: newCursor }
+    } else if (count >= 4) {
+      this.extraCursors = []
+      const lastLine = this.doc.lines.length - 1
+      this.selAnchor = { line: 0, col: 0 }
+      this.doc = { ...this.doc, cursor: { line: lastLine, col: this.doc.lines[lastLine].length } }
     } else if (count === 3) {
       this.extraCursors = []
       const [newDoc, newAnchor] = selectCurrentLine({ ...this.doc, cursor: newCursor })
