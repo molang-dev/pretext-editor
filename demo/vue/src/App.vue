@@ -37,11 +37,20 @@
         ref="editorRef"
         :value="code"
         @update:value="code = $event"
+        @cursor-change="cursor = $event"
         :language="language"
         :font-size="fontSize"
+        :tab-size="tabSize"
         :theme="theme"
         :word-wrap="wordWrap"
       />
+    </div>
+
+    <div class="statusbar">
+      <span>行 {{ cursor.line + 1 }}, 列 {{ cursor.col + 1 }}</span>
+      <span>Tab Size: {{ tabSize }}</span>
+      <span>UTF-8</span>
+      <span>{{ LANGUAGES.find(l => l.value === language)?.label ?? language }}</span>
     </div>
   </div>
 </template>
@@ -144,7 +153,9 @@ const code = ref(SAMPLE_CODE)
 const language = ref('typescript')
 const theme = ref('dark-plus')
 const fontSize = ref(14)
+const tabSize = ref(4)
 const wordWrap = ref(false)
+const cursor = ref({ line: 0, col: 0 })
 const editorRef = ref<PretextEditorHandle>()
 const fileInputRef = ref<HTMLInputElement>()
 
@@ -194,4 +205,9 @@ function onFileChange(e: Event) {
 .btn--active { background: #1177bb; outline: 1px solid #4fc3f7; }
 .editor-wrap { flex: 1; overflow: hidden; }
 .file-input-hidden { display: none; }
+.statusbar {
+  display: flex; gap: 16px; align-items: center;
+  padding: 2px 16px; background: #007acc; color: #fff;
+  font-size: 12px; flex-shrink: 0; user-select: none;
+}
 </style>

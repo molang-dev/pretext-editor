@@ -60,7 +60,7 @@ export const PretextEditor = defineComponent({
     theme: { type: String, default: 'dark-plus' },
     wordWrap: { type: Boolean, default: false },
   },
-  emits: ['update:value'],
+  emits: ['update:value', 'cursor-change'],
   setup(
     props: {
       value: string
@@ -75,7 +75,7 @@ export const PretextEditor = defineComponent({
       theme: string
       wordWrap: boolean
     },
-    { emit, expose }: SetupContext<{ 'update:value': (value: string) => void }>,
+    { emit, expose }: SetupContext<{ 'update:value': (value: string) => void; 'cursor-change': (cursor: { line: number; col: number }) => void }>,
   ) {
     const containerRef = ref<HTMLDivElement>()
     const contentRef = ref<HTMLDivElement>()
@@ -111,6 +111,7 @@ export const PretextEditor = defineComponent({
     const onStateChange = () => {
       const s = ctrl!.getState()
       Object.assign(state, s)
+      emit('cursor-change', s.doc.cursor)
       // Focus find input when search bar opens
       if (s.searchState.isOpen && !state.searchState.isOpen === false) {
         // search was just opened — handled by the next tick watcher
