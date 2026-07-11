@@ -47,6 +47,7 @@ import {
   colFromX,
   type VisualLayout,
 } from '../core/renderer'
+import { log } from '../core/logger'
 
 // ---- Types ----
 
@@ -123,8 +124,6 @@ export type CursorSlot = { head: Cursor; anchor: Cursor | null }
 type Snapshot = { doc: Doc; selAnchor: Cursor | null; extraCursors: CursorSlot[] }
 
 // ---- Helpers ----
-
-const debug = false
 
 const LINE_COMMENT: Record<string, string> = {
   typescript: '//', tsx: '//', javascript: '//', jsx: '//',
@@ -211,6 +210,7 @@ export class EditorController {
   private contentEl: HTMLElement | null = null
   private charWidth = 0
   private contentWidthDirty = true
+  private dirtyLines: Set<number> | null = null
   private wordWrap = false
   private visualLayout: VisualLayout | null = null
   private layoutDirty = false
@@ -640,6 +640,7 @@ export class EditorController {
       const sel = this.getActiveSel()
       const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
       this.commitUpdate(insert(base, text), null)
+      log('[paste]', text.length, 'chars')
       requestAnimationFrame(() => this.scrollCursorIntoView())
     }).catch(() => {})
   }
@@ -689,8 +690,10 @@ export class EditorController {
 
       const visFrom = this.visibleLineStart()
       const visEnd = this.visibleLineEnd(newLines.length)
+      log(`[layout] commitUpdate fromLine=${fromLine} cursorLine=${newDoc.cursor.line} visibleEnd=${visEnd} totalLines=${newLines.length}`)
       const cb: TokenBatchCallback = (from, to, tl) => {
         if (this.tokenEpoch !== epoch) return
+        log(`[hl recv] from=${from} to=${to}`)
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
         if (this.batchOverlapsViewport(from, to)) this.notifyAndRepaint()
       }
@@ -961,7 +964,7 @@ export class EditorController {
     }
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
-    if (debug) console.log(`[repaint] selAnchor=${JSON.stringify(this.selAnchor)} cursor=${JSON.stringify(this.doc.cursor)} sel=${JSON.stringify(sel)}`)
+    log(`[repaint] selAnchor=${JSON.stringify(this.selAnchor)} cursor=${JSON.stringify(this.doc.cursor)} sel=${JSON.stringify(sel)}`)
     const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
     this.tokenLinesPatch = null
 
@@ -982,7 +985,9 @@ export class EditorController {
       searchHighlights: this.searchState.isOpen ? this.searchMatches : undefined,
       searchCurrentIdx: this.searchState.currentIndex,
       theme: this.theme,
+      dirtyLines: this.dirtyLines ?? undefined,
     }
+    this.dirtyLines = null
     this.lastRenderOptions = opts
     this.gutterWidth = renderCanvas(opts).gutterWidth
   }
@@ -1182,10 +1187,13 @@ export class EditorController {
         this.doc = { ...this.doc, cursor: newCursor }
       }
     } else {
+      const prevLine = this.doc.cursor.line
+      const canDirty = this.selAnchor === null && this.extraCursors.length === 0
       this.extraCursors = []
       this.dragAnchor = newCursor
       this.selAnchor = null
       this.doc = { ...this.doc, cursor: newCursor }
+      if (canDirty) this.dirtyLines = new Set([prevLine, newCursor.line])
     }
 
     this.notifyAndRepaint()
@@ -1195,7 +1203,7 @@ export class EditorController {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!(e.buttons & 1)) return
-    if (debug) console.log(`[drag] buttons=${e.buttons} dragAnchor=${JSON.stringify(this.dragAnchor)} columnDrag=${this.columnDrag !== null}`)
+    log(`[drag] buttons=${e.buttons} dragAnchor=${JSON.stringify(this.dragAnchor)} columnDrag=${this.columnDrag !== null}`)
     if (this.columnDrag !== null) {
       const pos = this.cursorFromPointer(e)
       const { anchorLine, anchorCol } = this.columnDrag
@@ -1206,7 +1214,7 @@ export class EditorController {
     const newHead = this.cursorFromPointer(e)
     this.selAnchor = this.dragAnchor
     this.doc = { ...this.doc, cursor: newHead }
-    if (debug) console.log(`[drag] newHead=${JSON.stringify(newHead)} selAnchor=${JSON.stringify(this.selAnchor)}`)
+    log(`[drag] newHead=${JSON.stringify(newHead)} selAnchor=${JSON.stringify(this.selAnchor)}`)
     this.notifyAndRepaint()
     this.lastDragEvent = e
     this.updateAutoScroll(e)
@@ -1360,6 +1368,7 @@ export class EditorController {
             const sel = this.getActiveSel()
             const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
             this.commitUpdate(insert(base, text), null)
+            log('[paste]', text.length, 'chars')
             requestAnimationFrame(() => this.scrollCursorIntoView())
           }).catch(() => {})
           return
@@ -1478,6 +1487,7 @@ export class EditorController {
           if (!shift) return
           e.preventDefault()
           this.commitUpdate(deleteLine(this.doc, this.getActiveSel()), null)
+          log('[delete] line')
           return
         }
         case 'enter': {
@@ -1490,6 +1500,7 @@ export class EditorController {
           this.applyToAllCursors((d, sel) =>
             sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordBackward(d),
           )
+          log('[delete] word-backward')
           return
         }
         case 'delete': {
@@ -1497,6 +1508,7 @@ export class EditorController {
           this.applyToAllCursors((d, sel) =>
             sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordForward(d),
           )
+          log('[delete] word-forward')
           return
         }
         case '/': {
@@ -1678,6 +1690,7 @@ export class EditorController {
         this.applyToAllCursors((d, sel) =>
           sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteBackward(d),
         )
+        log('[delete] backspace')
         break
       }
       case 'Delete': {
@@ -1685,6 +1698,7 @@ export class EditorController {
         this.applyToAllCursors((d, sel) =>
           sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteForward(d),
         )
+        log('[delete] delete')
         break
       }
       case 'Tab': {

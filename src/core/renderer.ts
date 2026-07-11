@@ -1,6 +1,7 @@
 import type { Cursor, Selection } from './document'
 import { isCollapsed, normalizeSelection } from './document'
 import type { SearchMatch } from './search'
+import { log } from './logger'
 
 export type TokenSpan = { text: string; color: string }
 export type TokenizedLine = TokenSpan[]
@@ -74,6 +75,7 @@ export interface RenderOptions {
   theme?: string
   singleLine?: number
   visualLayout?: VisualLayout
+  dirtyLines?: Set<number>
 }
 
 export type VisualRow = { logLine: number; startCol: number; endCol: number }
@@ -82,7 +84,6 @@ export type VisualLayout = {
   logToFirstVisual: number[]
 }
 
-const debug = false
 
 /** Count leading-whitespace depth in spaces (tabs expand to tabSize) */
 function indentDepth(text: string, tabSize: number): number {
@@ -266,6 +267,7 @@ export function renderCanvas({
   theme,
   singleLine,
   visualLayout,
+  dirtyLines,
 }: RenderOptions): { gutterWidth: number } {
   const ctx = canvas.getContext('2d')
   if (!ctx) return { gutterWidth: PADDING_LEFT }
@@ -305,6 +307,9 @@ export function renderCanvas({
       : Math.min(lines.length - 1, Math.ceil((scrollTop + h) / lineHeight))
   }
 
+  const dirtyTag = singleLine !== undefined ? ' (cursor-line only)' : dirtyLines ? ` (dirty:${[...dirtyLines].join(',')})` : ''
+  log(`[draw] firstLine=${firstLine} lastLine=${lastLine} total=${lines.length}${dirtyTag}`)
+
   // singleLine mode: clip to that row's pixel rect
   if (singleLine !== undefined) {
     const clipY = visualLayout
@@ -317,7 +322,22 @@ export function renderCanvas({
   }
 
   ctx.fillStyle = tc.bg
-  ctx.fillRect(0, 0, w, h)
+  if (dirtyLines) {
+    // Partial repaint: clear only dirty lines
+    if (visualLayout) {
+      for (let vr = firstVR; vr <= lastVR; vr++) {
+        if (!dirtyLines.has(visualLayout.rows[vr].logLine)) continue
+        ctx.fillRect(0, PADDING_TOP + vr * lineHeight - scrollTop, w, lineHeight)
+      }
+    } else {
+      for (let i = firstLine; i <= lastLine; i++) {
+        if (!dirtyLines.has(i)) continue
+        ctx.fillRect(0, PADDING_TOP + i * lineHeight - scrollTop, w, lineHeight)
+      }
+    }
+  } else {
+    ctx.fillRect(0, 0, w, h)
+  }
 
   if (!_guideCache || _guideCache.lines !== lines || _guideCache.tabSize !== tabSize) {
     _guideCache = { lines, tabSize, result: buildGuideData(lines, tabSize) }
@@ -331,7 +351,7 @@ export function renderCanvas({
 
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
-  if (debug && hasSel) console.log(`[render] hasSel=true selStart=${selStart.line} selEnd=${selEnd.line} firstLine=${firstLine} lastLine=${lastLine}`)
+  if (hasSel) log(`[render] hasSel=true selStart=${selStart.line} selEnd=${selEnd.line} firstLine=${firstLine} lastLine=${lastLine}`)
 
   // Binary search for search highlights in visible logical line range
   const firstLogLine = visualLayout
@@ -363,6 +383,7 @@ export function renderCanvas({
     // ---- Word-wrap path: iterate visual rows ----
     for (let vr = firstVR; vr <= lastVR; vr++) {
       const { logLine, startCol, endCol } = visualLayout.rows[vr]
+      if (dirtyLines && !dirtyLines.has(logLine)) continue
       const isFirstVR = vr === visualLayout.logToFirstVisual[logLine]
       const y = PADDING_TOP + vr * lineHeight - scrollTop
       const lineText = lines[logLine] ?? ''
@@ -479,7 +500,7 @@ export function renderCanvas({
           }
         }
       } else {
-        if (debug) console.log(`[draw line ${logLine}] plain cols ${startCol}..${endCol} of ${lineText.length}  xStart=${gutterWidth}  canvasW=${w}`)
+        log(`[draw line ${logLine}] plain cols ${startCol}..${endCol} of ${lineText.length}  xStart=${gutterWidth}  canvasW=${w}`)
         ctx.fillStyle = tc.fg
         fillTextWithTabs(ctx, lineText.slice(startCol, endCol), gutterWidth, textY, tabSize)
       }
@@ -510,6 +531,7 @@ export function renderCanvas({
   } else {
     // ---- Normal path: iterate logical lines ----
     for (let i = firstLine; i <= lastLine; i++) {
+      if (dirtyLines && !dirtyLines.has(i)) continue
       const y = PADDING_TOP + i * lineHeight - scrollTop
       const lineText = lines[i] ?? ''
 
@@ -633,7 +655,7 @@ export function renderCanvas({
             drawTo = lineText.length
           }
         }
-        if (debug) console.log(`[draw line ${i}] cols ${drawFrom}..${drawTo} of ${lineText.length}  xStart=${gutterWidth - scrollLeft}  canvasW=${w}`)
+        log(`[draw line ${i}] cols ${drawFrom}..${drawTo} of ${lineText.length}  xStart=${gutterWidth - scrollLeft}  canvasW=${w}`)
       } else {
         const xLineStart = gutterWidth - scrollLeft
         const lineW = measureWithTabs(ctx, lineText, tabSize)
@@ -649,9 +671,9 @@ export function renderCanvas({
           const drawX = xLineStart + measureWithTabs(ctx, lineText.slice(0, charStart), tabSize)
           ctx.fillStyle = tc.fg
           fillTextWithTabs(ctx, lineText.slice(charStart, charEnd), drawX, textY, tabSize)
-          if (debug) console.log(`[draw line ${i}] plain cols ${charStart}..${charEnd} of ${lineText.length}  xStart=${xLineStart}  canvasW=${w}`)
+          log(`[draw line ${i}] plain cols ${charStart}..${charEnd} of ${lineText.length}  xStart=${xLineStart}  canvasW=${w}`)
         } else {
-          if (debug) console.log(`[draw line ${i}] plain skipped  xStart=${xLineStart}  lineW=${lineW}  canvasW=${w}`)
+          log(`[draw line ${i}] plain skipped  xStart=${xLineStart}  lineW=${lineW}  canvasW=${w}`)
         }
       }
 
