@@ -18,6 +18,14 @@
 - The selection head updates each frame using the stored pointer position, so the selection extends in real time as the viewport scrolls
 - Scrolling stops immediately when the mouse button is released
 
+## Horizontal Scroll
+
+- Lines wider than the viewport create a horizontal scrollbar; the editor scrolls both axes independently
+- The gutter (line numbers) stays fixed at the left edge while content scrolls horizontally
+- Cursor is automatically scrolled into the visible horizontal range after every edit or navigation
+- During drag-to-select, approaching within 20px of the left or right edge triggers edge-accelerated horizontal auto-scroll (same speed profile as vertical: proportional, capped at 50px/frame)
+- Text rendering is viewport-aware: only characters within the visible horizontal range are drawn; spans entirely behind the gutter or past the right edge are skipped; half-characters at both boundaries are pixel-clipped via canvas clip region
+
 ## `readFromFile(file: File)` API
 
 - New method on `EditorController` for loading a file from disk

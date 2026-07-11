@@ -374,7 +374,10 @@ export function renderCanvas({
     ctx.textBaseline = 'top'
     ctx.fillText(String(i + 1), gutterWidth - 2 * spaceW, y + Math.floor((lineHeight - fontSize) / 2))
 
-    // Line text (syntax-highlighted or plain)
+    // Line text (syntax-highlighted or plain) + cursors
+    // Clip to content area [gutterWidth, w]: half-chars at boundaries are pixel-clipped.
+    // Skip spans fully behind the gutter (xOff + spanW <= gutterWidth) or break when
+    // fully past the right edge (xOff >= w) to avoid wasted fillText calls.
     // Always draw lineText chars (not span.text) so text position stays in sync
     // with selection even when tokenLines are stale (useDeferredValue lag).
     // Monaco-style: never clear tokens — if stale spans run short, extend with
@@ -382,24 +385,59 @@ export function renderCanvas({
     const tokenLine = tokenLines?.[i]
     const textY = y + Math.floor((lineHeight - fontSize) / 2)
     ctx.textAlign = 'left'
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(gutterWidth, 0, w - gutterWidth, h)
+    ctx.clip()
     if (tokenLine && tokenLine.length > 0) {
       let xOff = gutterWidth - scrollLeft
       let charOff = 0
+      let drawFrom = -1
+      let drawTo = 0
       for (const span of tokenLine) {
         if (charOff >= lineText.length) break
         const end = Math.min(charOff + span.text.length, lineText.length)
+        const chunk = lineText.slice(charOff, end)
+        const spanW = measureWithTabs(ctx, chunk, tabSize)
+        if (xOff + spanW <= gutterWidth) {
+          xOff += spanW
+          charOff = end
+          continue
+        }
+        if (xOff >= w) break
+        if (drawFrom === -1) drawFrom = charOff
         ctx.fillStyle = span.color
-        xOff = fillTextWithTabs(ctx, lineText.slice(charOff, end), xOff, textY, tabSize)
+        xOff = fillTextWithTabs(ctx, chunk, xOff, textY, tabSize)
+        drawTo = end
         charOff = end
       }
-      if (charOff < lineText.length) {
+      if (charOff < lineText.length && xOff < w) {
         // Stale spans ran out — extend with last span's color, not FG
-        ctx.fillStyle = tokenLine[tokenLine.length - 1].color
-        fillTextWithTabs(ctx, lineText.slice(charOff), xOff, textY, tabSize)
+        const chunk = lineText.slice(charOff)
+        const spanW = measureWithTabs(ctx, chunk, tabSize)
+        if (xOff + spanW > gutterWidth) {
+          if (drawFrom === -1) drawFrom = charOff
+          ctx.fillStyle = tokenLine[tokenLine.length - 1].color
+          fillTextWithTabs(ctx, chunk, xOff, textY, tabSize)
+          drawTo = lineText.length
+        }
       }
     } else {
-      ctx.fillStyle = tc.fg
-      fillTextWithTabs(ctx, lineText, gutterWidth - scrollLeft, textY, tabSize)
+      const xLineStart = gutterWidth - scrollLeft
+      const lineW = measureWithTabs(ctx, lineText, tabSize)
+      if (xLineStart + lineW > gutterWidth && xLineStart < w) {
+        const leftClip = Math.max(0, gutterWidth - xLineStart)
+        const charStart = leftClip > 0
+          ? colFromX(ctx, lineText, leftClip, fontSize, fontFamily, tabSize)
+          : 0
+        const charEnd = Math.min(
+          lineText.length,
+          colFromX(ctx, lineText, w - xLineStart, fontSize, fontFamily, tabSize) + 1,
+        )
+        const drawX = xLineStart + measureWithTabs(ctx, lineText.slice(0, charStart), tabSize)
+        ctx.fillStyle = tc.fg
+        fillTextWithTabs(ctx, lineText.slice(charStart, charEnd), drawX, textY, tabSize)
+      }
     }
 
     // Cursor (primary)
@@ -419,6 +457,7 @@ export function renderCanvas({
         ctx.fillRect(Math.floor(xExtra), y + 2, 2, lineHeight - 4)
       }
     }
+    ctx.restore()
   }
 
   ctx.restore()
