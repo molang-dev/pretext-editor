@@ -318,6 +318,15 @@ export class EditorController {
     requestAnimationFrame(() => this.repaint())
   }
 
+  private resetCursorBlink(): void {
+    this.cursorVisible = true
+    if (this.blinkTimer) clearInterval(this.blinkTimer)
+    this.blinkTimer = setInterval(() => {
+      this.cursorVisible = !this.cursorVisible
+      this.repaintCursorLine()
+    }, 530)
+  }
+
   destroy(): void {
     if (this.blinkTimer) { clearInterval(this.blinkTimer); this.blinkTimer = null }
     this.stopAutoScroll()
@@ -1199,6 +1208,7 @@ export class EditorController {
       if (canDirty) this.dirtyLines = new Set([prevLine, newCursor.line])
     }
 
+    this.resetCursorBlink()
     this.notifyAndRepaint()
     e.stopPropagation()
     ;(e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId)
