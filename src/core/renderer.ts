@@ -272,6 +272,7 @@ export function renderCanvas({
   const ctx = canvas.getContext('2d')
   if (!ctx) return { gutterWidth: PADDING_LEFT }
   const tc = BUILT_IN_THEMES[theme ?? 'dark-plus'] ?? BUILT_IN_THEMES['dark-plus']
+  canvas.style.backgroundColor = tc.bg
 
   const dpr = window.devicePixelRatio || 1
   const w = canvas.width / dpr

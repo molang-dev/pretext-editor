@@ -371,20 +371,23 @@ export class EditorController {
       }
     }
     if (options.contextMenuItems !== undefined) this.contextMenuItemsFn = options.contextMenuItems
+    let workerWillRepaint = false
     if (options.theme !== undefined && options.theme !== this.theme) {
       this.theme = options.theme
       this.tokenizer.setTheme(this.theme)
-      if (this.workerReady) this.triggerFullTokenize()
+      if (this.workerReady) {
+        this.triggerFullTokenize(true)
+        workerWillRepaint = true
+      }
     }
     if (langChanged && this.language) {
-      this.tokenLines = undefined
       this.workerReady = false
       this.tokenizer.setLang(this.language, () => {
         this.workerReady = true
-        this.triggerFullTokenize()
+        this.triggerFullTokenize(true)
       })
     }
-    this.repaint()
+    if (!workerWillRepaint) this.repaint()
   }
 
   getState(): EditorControllerState {
@@ -747,12 +750,12 @@ export class EditorController {
     return cursorLine >= from && cursorLine < to
   }
 
-  private triggerFullTokenize(): void {
+  private triggerFullTokenize(keepTokens = false): void {
     const lines = this.doc.lines
     const epoch = ++this.tokenEpoch
     const visFrom = this.visibleLineStart()
     const visEnd = this.visibleLineEnd()
-    this.tokenLines = new Array(lines.length).fill([])
+    if (!keepTokens || !this.tokenLines) this.tokenLines = new Array(lines.length).fill([])
     this.tokenizer.update(0, 0, lines, (from, to, tl) => {
       if (this.tokenEpoch !== epoch) return
       for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
