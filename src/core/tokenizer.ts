@@ -7,12 +7,14 @@ export class WorkerTokenizer {
   private batchCallback: TokenBatchCallback | null = null
   private currentReqId = 0
   private langReadyCallback: (() => void) | null = null
+  private externalWorker = false
 
   init(workerOrUrl?: Worker | URL | string): void {
     if (typeof Worker === 'undefined') return
     try {
       if (workerOrUrl instanceof Worker) {
         this.worker = workerOrUrl
+        this.externalWorker = true
         this.worker.onmessage = (e: MessageEvent) => this.onMessage(e.data)
         return
       }
@@ -60,7 +62,7 @@ export class WorkerTokenizer {
   }
 
   destroy(): void {
-    this.worker?.terminate()
+    if (!this.externalWorker) this.worker?.terminate()
     this.worker = null
   }
 }

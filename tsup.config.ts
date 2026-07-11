@@ -36,6 +36,7 @@ const mainConfig = defineConfig({
     cpSync('src/angular/editor.component.ts', 'dist/angular/editor.component.ts')
     cpSync('src/controller/EditorController.ts', 'dist/controller/EditorController.ts')
     cpSync('src/core/document.ts', 'dist/core/document.ts')
+    cpSync('src/core/logger.ts', 'dist/core/logger.ts')
     cpSync('src/core/renderer.ts', 'dist/core/renderer.ts')
     cpSync('src/core/tokenizer.ts', 'dist/core/tokenizer.ts')
     cpSync('src/core/search.ts', 'dist/core/search.ts')

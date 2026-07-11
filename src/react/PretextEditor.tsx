@@ -48,6 +48,8 @@ export interface PretextEditorProps {
   ) => import('../controller/EditorController').ContextMenuItem[]
   renderSearchBar?: (state: SearchState, actions: SearchActions) => React.ReactNode
   theme?: string
+  wordWrap?: boolean
+  onCursorChange?: (cursor: { line: number; col: number }) => void
 }
 
 export const PretextEditor = forwardRef<
@@ -68,6 +70,8 @@ export const PretextEditor = forwardRef<
     contextMenuItems,
     renderSearchBar,
     theme,
+    wordWrap,
+    onCursorChange,
   }: PretextEditorProps,
   ref,
 ): React.JSX.Element {
@@ -79,8 +83,13 @@ export const PretextEditor = forwardRef<
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0)
   const stateRef = useRef<EditorControllerState | null>(null)
 
+  const onCursorChangeRef = useRef(onCursorChange)
+  onCursorChangeRef.current = onCursorChange
+
   const onStateChange = useCallback(() => {
-    stateRef.current = ctrlRef.current!.getState()
+    const s = ctrlRef.current!.getState()
+    stateRef.current = s
+    onCursorChangeRef.current?.(s.doc.cursor)
     forceUpdate()
   }, [])
 
@@ -100,6 +109,7 @@ export const PretextEditor = forwardRef<
       worker: eagerWorker ?? undefined,
       workerUrl: WORKER_URL,
       theme,
+      wordWrap,
     })
     ctrl.mount(containerRef.current!, canvasRef.current!, textareaRef.current!, onStateChange, contentRef.current!)
     ctrlRef.current = ctrl
@@ -109,8 +119,8 @@ export const PretextEditor = forwardRef<
 
   // Sync props into controller
   useLayoutEffect(() => {
-    ctrlRef.current?.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme })
-  }, [language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme])
+    ctrlRef.current?.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, wordWrap })
+  }, [language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, wordWrap])
 
   useLayoutEffect(() => {
     ctrlRef.current?.setValue(value)

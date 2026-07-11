@@ -720,7 +720,7 @@ export class EditorController {
         const newVisFrom = Math.max(0, newVisTo - linesPerPage)
         this.tokenizer.notifyViewport(newVisFrom, newVisTo)
       }
-      workerWillRepaint = true
+      workerWillRepaint = fromLine < newLines.length
     }
 
     this.doc = newDoc

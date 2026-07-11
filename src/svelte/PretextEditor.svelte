@@ -28,7 +28,7 @@
     | ((builtins: ContextMenuBuiltins) => ContextMenuItem[])
     | undefined = undefined;
 
-  const dispatch = createEventDispatcher<{ change: string }>();
+  const dispatch = createEventDispatcher<{ change: string; 'cursor-change': { line: number; col: number } }>();
 
   // DOM refs
   let containerEl: HTMLDivElement;
@@ -70,6 +70,7 @@
     menuPos = s.menuPos;
     resolvedMenuItems = s.menuItems;
     searchState = s.searchState;
+    dispatch('cursor-change', s.doc.cursor);
 
     // Auto-focus find input when search first opens, or when Ctrl+F re-triggers
     if (s.searchState.isOpen && (!prevSearchOpen || s.searchState.focusToken !== prevFocusToken)) {
