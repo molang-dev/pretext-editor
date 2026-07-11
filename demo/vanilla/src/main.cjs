@@ -182,7 +182,6 @@ var editorWrap = el('div', { style: { flex: '1', position: 'relative', overflow:
 // Editor container
 var container = el('div', {
   class: 'pteic-editor-scroll',
-  style: { position: 'relative', overflow: 'auto', outline: 'none', cursor: 'text' },
   onClick: function() { textarea.focus({ preventScroll: true }) },
 })
 

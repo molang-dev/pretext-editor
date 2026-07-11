@@ -117,8 +117,8 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
       </div>
 
       <div class="editor-wrap-shell">
-        <div #container class="pteic-editor-scroll" style="position:relative;overflow:auto;outline:none;cursor:text">
-          <div [style.height.px]="totalHeight" class="pteic-editor-content">
+        <div #container class="pteic-editor-scroll">
+          <div #content [style.height.px]="totalHeight" class="pteic-editor-content">
             <canvas #canvas class="pteic-editor-canvas"></canvas>
           </div>
 
@@ -139,7 +139,10 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
           }
 
           <textarea #textarea rows="1" class="pteic-editor-textarea"
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+            (keydown)="onKeyDown($event)"
+            (compositionstart)="onCompositionStart()"
+            (compositionend)="onCompositionEnd($event)">
           </textarea>
         </div>
 
@@ -249,6 +252,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   fontSizeOptions = FONT_SIZE_OPTIONS
 
   @ViewChild('container') containerRef!: ElementRef<HTMLDivElement>
+  @ViewChild('content') contentRef!: ElementRef<HTMLDivElement>
   @ViewChild('canvas') canvasRef!: ElementRef<HTMLCanvasElement>
   @ViewChild('textarea') textareaRef!: ElementRef<HTMLTextAreaElement>
   @ViewChild('findInput') findInputRef!: ElementRef<HTMLInputElement>
@@ -266,11 +270,16 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   }
 
   private ctrl!: EditorController
+  private hlWorker?: Worker
 
   constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
 
   ngAfterViewInit(): void {
     this.ngZone.runOutsideAngular(() => {
+      this.hlWorker = new Worker(
+        new URL('../../node_modules/pretext-editor/dist/highlight.worker.js', import.meta.url),
+        { type: 'module' }
+      )
       this.ctrl = new EditorController({
         value: this.code,
         onChange: (v: string) => this.ngZone.run(() => { this.code = v }),
@@ -279,6 +288,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
         fontSize: this.fontSize,
         tabSize: this.tabSize,
         wordWrap: this.wordWrap,
+        worker: this.hlWorker,
       })
       this.ctrl.mount(
         this.containerRef.nativeElement,
@@ -300,11 +310,15 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           }
           this.cdr.detectChanges()
         },
+        this.contentRef.nativeElement,
       )
     })
   }
 
-  ngOnDestroy(): void { this.ctrl?.destroy() }
+  ngOnDestroy(): void {
+    this.ctrl?.destroy()
+    this.hlWorker?.terminate()
+  }
 
   currentLanguageLabel(): string {
     return LANGUAGES.find(l => l.value === this.language)?.label ?? this.language
@@ -389,6 +403,10 @@ export class AppComponent implements AfterViewInit, OnDestroy {
     if (e.key === 'Escape') { e.preventDefault(); this.closeSearch(); return }
     e.stopPropagation()
   }
+
+  onKeyDown(e: KeyboardEvent): void { this.ctrl?.onKeyDown(e) }
+  onCompositionStart(): void { this.ctrl?.onCompositionStart() }
+  onCompositionEnd(e: CompositionEvent): void { this.ctrl?.onCompositionEnd(e) }
 
   onReplaceKeyDown(e: KeyboardEvent): void {
     if (e.altKey && !e.ctrlKey && !e.metaKey) {
