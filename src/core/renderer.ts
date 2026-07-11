@@ -63,6 +63,7 @@ export interface RenderOptions {
   selection?: Selection | null
   extraCursors?: Array<{ head: Cursor; anchor: Cursor | null }>
   scrollTop: number
+  scrollLeft?: number
   fontSize?: number
   fontFamily?: string
   tabSize?: number
@@ -169,7 +170,7 @@ function activeBracketLevel(
 }
 
 /** Measure text width, treating \t as tabSize spaces */
-function measureWithTabs(ctx: CanvasRenderingContext2D, text: string, tabWidth: number): number {
+export function measureWithTabs(ctx: CanvasRenderingContext2D, text: string, tabWidth: number): number {
   if (!text.includes('\t')) return ctx.measureText(text).width
   const spaceW = ctx.measureText(' ').width
   let w = 0
@@ -211,6 +212,7 @@ export function renderCanvas({
   selection,
   extraCursors,
   scrollTop,
+  scrollLeft = 0,
   fontSize = DEFAULT_FONT_SIZE,
   fontFamily = DEFAULT_FONT_FAMILY,
   tabSize = DEFAULT_TAB_SIZE,
@@ -311,8 +313,8 @@ export function renderCanvas({
         if (i < m.anchor.line || i > m.head.line) continue
         const colS = i === m.anchor.line ? m.anchor.col : 0
         const colE = i === m.head.line ? m.head.col : lineText.length
-        const xS = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
-        const xE = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
+        const xS = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
+        const xE = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
         ctx.fillStyle = mi === searchCurrentIdx ? tc.searchCurrentBg : tc.searchMatchBg
         ctx.fillRect(xS, y, Math.max(xE - xS, 2), lineHeight)
       }
@@ -325,7 +327,7 @@ export function renderCanvas({
     const el = effectiveLevels[i] ?? 0
     const maxG = rl === -1 ? el : rl
     for (let g = 1; g <= maxG; g++) {
-      const gx = Math.floor(gutterWidth + (g - 1) * indentUnit * spaceW)
+      const gx = Math.floor(gutterWidth - scrollLeft + (g - 1) * indentUnit * spaceW)
       ctx.fillStyle = g === activeGuideLevel ? tc.indentGuideActive : tc.indentGuide
       ctx.fillRect(gx, y, 1, lineHeight)
     }
@@ -336,11 +338,11 @@ export function renderCanvas({
       const colEnd = i === selEnd.line ? selEnd.col : lineText.length
 
       ctx.font = font
-      const xStart = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
+      const xStart = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
       const xEnd =
         i === selEnd.line
-          ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
-          : gutterWidth + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
+          ? gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
+          : gutterWidth - scrollLeft + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
 
       ctx.fillStyle = tc.selectionBg
       ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
@@ -353,11 +355,11 @@ export function renderCanvas({
       if (isCollapsed({ anchor: exS, head: exE }) || i < exS.line || i > exE.line) continue
       const colStart = i === exS.line ? exS.col : 0
       const colEnd = i === exE.line ? exE.col : lineText.length
-      const xStart = gutterWidth + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
+      const xStart = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
       const xEnd =
         i === exE.line
-          ? gutterWidth + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
-          : gutterWidth + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
+          ? gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
+          : gutterWidth - scrollLeft + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
       ctx.fillStyle = tc.selectionBg
       ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
     }
@@ -381,7 +383,7 @@ export function renderCanvas({
     const textY = y + Math.floor((lineHeight - fontSize) / 2)
     ctx.textAlign = 'left'
     if (tokenLine && tokenLine.length > 0) {
-      let xOff = gutterWidth
+      let xOff = gutterWidth - scrollLeft
       let charOff = 0
       for (const span of tokenLine) {
         if (charOff >= lineText.length) break
@@ -397,13 +399,13 @@ export function renderCanvas({
       }
     } else {
       ctx.fillStyle = tc.fg
-      fillTextWithTabs(ctx, lineText, gutterWidth, textY, tabSize)
+      fillTextWithTabs(ctx, lineText, gutterWidth - scrollLeft, textY, tabSize)
     }
 
     // Cursor (primary)
     if (cursorVisible && i === cursor.line) {
       const textBefore = lineText.slice(0, cursor.col)
-      const cursorX = gutterWidth + measureWithTabs(ctx, textBefore, tabSize)
+      const cursorX = gutterWidth - scrollLeft + measureWithTabs(ctx, textBefore, tabSize)
       ctx.fillStyle = tc.cursorColor
       ctx.fillRect(Math.floor(cursorX), y + 2, 2, lineHeight - 4)
     }
@@ -412,7 +414,7 @@ export function renderCanvas({
     if (cursorVisible) {
       for (const slot of extraCursors ?? []) {
         if (i !== slot.head.line) continue
-        const xExtra = gutterWidth + measureWithTabs(ctx, lineText.slice(0, slot.head.col), tabSize)
+        const xExtra = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, slot.head.col), tabSize)
         ctx.fillStyle = tc.cursorColor
         ctx.fillRect(Math.floor(xExtra), y + 2, 2, lineHeight - 4)
       }

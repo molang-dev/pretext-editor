@@ -36,6 +36,7 @@ import {
 } from '../core/document'
 import {
   renderCanvas,
+  measureWithTabs,
   PADDING_LEFT,
   PADDING_TOP,
   FONT_SIZE_TO_LINE_HEIGHT,
@@ -189,6 +190,7 @@ export class EditorController {
   private dragAnchor: Cursor | null = null
   private columnDrag: { anchorLine: number; anchorCol: number } | null = null
   private autoScrollVelocity = 0
+  private autoScrollVelocityX = 0
   private autoScrollRaf: number | null = null
   private lastDragEvent: PointerEvent | null = null
   private isEditorActive = false
@@ -203,6 +205,8 @@ export class EditorController {
   private gutterWidth = PADDING_LEFT
   private lastRenderOptions: import('../core/renderer').RenderOptions | null = null
   private contentEl: HTMLElement | null = null
+  private charWidth = 0
+  private contentWidthDirty = true
 
   // DOM refs
   private container: HTMLDivElement | null = null
@@ -277,6 +281,7 @@ export class EditorController {
     this.resizeObserver = new ResizeObserver(() => {
       if (this.canvas && this.container) {
         this.canvas.style.height = this.container.clientHeight + 'px'
+        this.canvas.style.width = this.container.clientWidth + 'px'
       }
       this.repaint()
     })
@@ -330,6 +335,7 @@ export class EditorController {
       this.doc = fromString(value)
       this.selAnchor = null
       this.extraCursors = []
+      this.contentWidthDirty = true
       this.notifyAndRepaint()
     }
   }
@@ -337,9 +343,9 @@ export class EditorController {
   updateOptions(options: Partial<EditorControllerOptions>): void {
     const langChanged = options.language !== undefined && options.language !== this.language
     if (options.language !== undefined) this.language = options.language
-    if (options.fontSize !== undefined) this.fontSize = options.fontSize
-    if (options.fontFamily !== undefined) this.fontFamily = options.fontFamily
-    if (options.tabSize !== undefined) this.tabSize = options.tabSize
+    if (options.fontSize !== undefined) { this.fontSize = options.fontSize; this.charWidth = 0; this.contentWidthDirty = true }
+    if (options.fontFamily !== undefined) { this.fontFamily = options.fontFamily; this.charWidth = 0; this.contentWidthDirty = true }
+    if (options.tabSize !== undefined) { this.tabSize = options.tabSize; this.contentWidthDirty = true }
     if (options.binding !== undefined) this.binding = options.binding
     if (options.active !== undefined) {
       this.active = options.active
@@ -687,6 +693,7 @@ export class EditorController {
     this.doc = newDoc
     this.selAnchor = newAnchor
     this.extraCursors = newExtra
+    this.contentWidthDirty = true
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
@@ -769,6 +776,7 @@ export class EditorController {
       }, this.visibleLineStart(), this.visibleLineEnd())
     }
 
+    this.contentWidthDirty = true
     this.notifyAndRepaint()
   }
 
@@ -874,6 +882,28 @@ export class EditorController {
     this.contentEl.style.height = h + 'px'
   }
 
+  private updateContentWidth(): void {
+    if (!this.contentEl || !this.container || !this.canvas) return
+    if (this.charWidth === 0) {
+      const ctx = this.canvas.getContext('2d')
+      if (!ctx) return
+      ctx.font = `${this.fontSize}px ${this.fontFamily}`
+      this.charWidth = ctx.measureText('m').width
+    }
+    const cw = this.charWidth
+    const tw = cw * this.tabSize
+    let maxW = 0
+    for (const line of this.doc.lines) {
+      let w = 0
+      for (let i = 0; i < line.length; i++) {
+        w += line[i] === '\t' ? tw : cw
+      }
+      if (w > maxW) maxW = w
+    }
+    const minW = this.container.clientWidth
+    this.contentEl.style.width = Math.max(this.gutterWidth + maxW + 20, minW) + 'px'
+  }
+
   private repaint = (): void => {
     const canvas = this.canvas
     const container = this.container
@@ -889,6 +919,10 @@ export class EditorController {
     }
 
     this.updateContentHeight()
+    if (this.contentWidthDirty) {
+      this.updateContentWidth()
+      this.contentWidthDirty = false
+    }
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
     if (debug) console.log(`[repaint] selAnchor=${JSON.stringify(this.selAnchor)} cursor=${JSON.stringify(this.doc.cursor)} sel=${JSON.stringify(sel)}`)
@@ -902,6 +936,7 @@ export class EditorController {
       selection: sel,
       extraCursors: this.extraCursors,
       scrollTop: container.scrollTop,
+      scrollLeft: container.scrollLeft,
       fontSize: this.fontSize,
       fontFamily: this.fontFamily,
       tabSize: this.tabSize,
@@ -935,7 +970,7 @@ export class EditorController {
     const container = this.container!
     const ctx = canvas.getContext('2d')!
     const rect = canvas.getBoundingClientRect()
-    const cssX = e.clientX - rect.left
+    const cssX = e.clientX - rect.left + container.scrollLeft
     const cssY = e.clientY - rect.top + container.scrollTop
     const line = Math.max(
       0,
@@ -973,6 +1008,21 @@ export class EditorController {
       container.scrollTop = cursorY
     } else if (cursorY + this.lineHeight > container.scrollTop + container.clientHeight) {
       container.scrollTop = cursorY + this.lineHeight - container.clientHeight + PADDING_TOP
+    }
+    // Horizontal: scroll cursor x into view
+    if (this.canvas) {
+      const ctx = this.canvas.getContext('2d')
+      if (ctx) {
+        ctx.font = `${this.fontSize}px ${this.fontFamily}`
+        const lineText = this.doc.lines[this.doc.cursor.line] ?? ''
+        const cursorTextX = measureWithTabs(ctx, lineText.slice(0, this.doc.cursor.col), this.tabSize)
+        const visW = container.clientWidth - this.gutterWidth
+        if (cursorTextX < container.scrollLeft) {
+          container.scrollLeft = Math.max(0, cursorTextX - 20)
+        } else if (cursorTextX > container.scrollLeft + visW - 4) {
+          container.scrollLeft = cursorTextX - visW + 4
+        }
+      }
     }
   }
 
@@ -1096,24 +1146,28 @@ export class EditorController {
     const rect = this.container!.getBoundingClientRect()
     const ZONE = 20, SPEED_PER_PX = 1.5, MAX_SPEED = 50
     const y = e.clientY
+    const x = e.clientX
     const distTop = rect.top + ZONE - y
     const distBottom = y - rect.bottom + ZONE
-    if (distTop > 0)
-      this.autoScrollVelocity = -Math.min(distTop * SPEED_PER_PX, MAX_SPEED)
-    else if (distBottom > 0)
-      this.autoScrollVelocity = Math.min(distBottom * SPEED_PER_PX, MAX_SPEED)
-    else
-      this.autoScrollVelocity = 0
-    if (this.autoScrollVelocity !== 0 && this.autoScrollRaf === null)
+    if (distTop > 0) this.autoScrollVelocity = -Math.min(distTop * SPEED_PER_PX, MAX_SPEED)
+    else if (distBottom > 0) this.autoScrollVelocity = Math.min(distBottom * SPEED_PER_PX, MAX_SPEED)
+    else this.autoScrollVelocity = 0
+    const distLeft = rect.left + ZONE + this.gutterWidth - x
+    const distRight = x - rect.right + ZONE
+    if (distLeft > 0) this.autoScrollVelocityX = -Math.min(distLeft * SPEED_PER_PX, MAX_SPEED)
+    else if (distRight > 0) this.autoScrollVelocityX = Math.min(distRight * SPEED_PER_PX, MAX_SPEED)
+    else this.autoScrollVelocityX = 0
+    if ((this.autoScrollVelocity !== 0 || this.autoScrollVelocityX !== 0) && this.autoScrollRaf === null)
       this.autoScrollRaf = requestAnimationFrame(this.autoScrollTick)
   }
 
   private autoScrollTick = (): void => {
-    if (!this.autoScrollVelocity || !this.container || !this.dragAnchor) {
+    if ((!this.autoScrollVelocity && !this.autoScrollVelocityX) || !this.container || !this.dragAnchor) {
       this.autoScrollRaf = null
       return
     }
     this.container.scrollTop += this.autoScrollVelocity
+    this.container.scrollLeft += this.autoScrollVelocityX
     if (this.lastDragEvent) {
       const newHead = this.cursorFromPointer(this.lastDragEvent)
       this.selAnchor = this.dragAnchor
@@ -1125,6 +1179,7 @@ export class EditorController {
 
   private stopAutoScroll(): void {
     this.autoScrollVelocity = 0
+    this.autoScrollVelocityX = 0
     if (this.autoScrollRaf !== null) {
       cancelAnimationFrame(this.autoScrollRaf)
       this.autoScrollRaf = null
