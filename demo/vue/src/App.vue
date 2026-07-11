@@ -36,6 +36,7 @@
       </label>
 
       <button class="btn" @click="scrollToTop">Scroll to Top</button>
+      <button class="btn" :class="{ 'btn--active': wordWrap }" @click="wordWrap = !wordWrap">换行</button>
     </div>
 
     <div class="editor-wrap">
@@ -46,6 +47,7 @@
         :language="language"
         :font-size="fontSize"
         :theme="theme"
+        :word-wrap="wordWrap"
       />
     </div>
   </div>
@@ -71,6 +73,7 @@ const code = ref(SAMPLE_CODE)
 const language = ref('typescript')
 const theme = ref('dark-plus')
 const fontSize = ref(14)
+const wordWrap = ref(false)
 const editorRef = ref<PretextEditorHandle>()
 
 const fontSizeOptions = computed(() => {
@@ -104,5 +107,6 @@ function scrollToTop() {
   background: #0e639c; color: #fff; border: none;
   border-radius: 4px; padding: 4px 12px; font-size: 13px; cursor: pointer;
 }
+.btn--active { background: #1177bb; outline: 1px solid #4fc3f7; }
 .editor-wrap { flex: 1; overflow: hidden; }
 </style>

@@ -37,6 +37,7 @@ import {
 import {
   renderCanvas,
   measureWithTabs,
+  computeVisualLayout,
   PADDING_LEFT,
   PADDING_TOP,
   FONT_SIZE_TO_LINE_HEIGHT,
@@ -44,6 +45,7 @@ import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_TAB_SIZE,
   colFromX,
+  type VisualLayout,
 } from '../core/renderer'
 
 // ---- Types ----
@@ -78,6 +80,7 @@ export interface PretextEditorProps {
   binding?: IEditorBinding
   active?: boolean
   contextMenuItems?: (builtins: ContextMenuBuiltins) => ContextMenuItem[]
+  wordWrap?: boolean
 }
 
 export interface EditorControllerOptions {
@@ -93,6 +96,7 @@ export interface EditorControllerOptions {
   worker?: Worker
   workerUrl?: URL | string
   theme?: string
+  wordWrap?: boolean
 }
 
 export interface EditorControllerState {
@@ -120,7 +124,7 @@ type Snapshot = { doc: Doc; selAnchor: Cursor | null; extraCursors: CursorSlot[]
 
 // ---- Helpers ----
 
-const debug = true
+const debug = false
 
 const LINE_COMMENT: Record<string, string> = {
   typescript: '//', tsx: '//', javascript: '//', jsx: '//',
@@ -207,6 +211,9 @@ export class EditorController {
   private contentEl: HTMLElement | null = null
   private charWidth = 0
   private contentWidthDirty = true
+  private wordWrap = false
+  private visualLayout: VisualLayout | null = null
+  private layoutDirty = false
 
   // DOM refs
   private container: HTMLDivElement | null = null
@@ -228,6 +235,7 @@ export class EditorController {
     this.contextMenuItemsFn = options.contextMenuItems
     this.lastExternalValue = options.value
     this.theme = options.theme ?? 'dark-plus'
+    this.wordWrap = options.wordWrap ?? false
     this.tokenizer.init(options.worker ?? options.workerUrl)
     if (this.theme !== 'dark-plus') this.tokenizer.setTheme(this.theme)
   }
@@ -283,6 +291,8 @@ export class EditorController {
         this.canvas.style.height = this.container.clientHeight + 'px'
         this.canvas.style.width = this.container.clientWidth + 'px'
       }
+      this.layoutDirty = true
+      this.contentWidthDirty = true
       this.repaint()
     })
     this.resizeObserver.observe(container)
@@ -336,6 +346,7 @@ export class EditorController {
       this.selAnchor = null
       this.extraCursors = []
       this.contentWidthDirty = true
+      this.layoutDirty = true
       this.notifyAndRepaint()
     }
   }
@@ -343,9 +354,15 @@ export class EditorController {
   updateOptions(options: Partial<EditorControllerOptions>): void {
     const langChanged = options.language !== undefined && options.language !== this.language
     if (options.language !== undefined) this.language = options.language
-    if (options.fontSize !== undefined) { this.fontSize = options.fontSize; this.charWidth = 0; this.contentWidthDirty = true }
-    if (options.fontFamily !== undefined) { this.fontFamily = options.fontFamily; this.charWidth = 0; this.contentWidthDirty = true }
-    if (options.tabSize !== undefined) { this.tabSize = options.tabSize; this.contentWidthDirty = true }
+    if (options.fontSize !== undefined) { this.fontSize = options.fontSize; this.charWidth = 0; this.contentWidthDirty = true; this.layoutDirty = true }
+    if (options.fontFamily !== undefined) { this.fontFamily = options.fontFamily; this.charWidth = 0; this.contentWidthDirty = true; this.layoutDirty = true }
+    if (options.tabSize !== undefined) { this.tabSize = options.tabSize; this.contentWidthDirty = true; this.layoutDirty = true }
+    if (options.wordWrap !== undefined && options.wordWrap !== this.wordWrap) {
+      this.wordWrap = options.wordWrap
+      this.layoutDirty = true
+      this.contentWidthDirty = true
+      if (!this.wordWrap && this.container) this.container.scrollLeft = 0
+    }
     if (options.binding !== undefined) this.binding = options.binding
     if (options.active !== undefined) {
       this.active = options.active
@@ -694,6 +711,7 @@ export class EditorController {
     this.selAnchor = newAnchor
     this.extraCursors = newExtra
     this.contentWidthDirty = true
+    this.layoutDirty = true
     const str = toString(newDoc)
     this.lastExternalValue = str
     this.onChange(str)
@@ -777,6 +795,7 @@ export class EditorController {
     }
 
     this.contentWidthDirty = true
+    this.layoutDirty = true
     this.notifyAndRepaint()
   }
 
@@ -876,9 +895,20 @@ export class EditorController {
 
   // ---- Internal: Canvas repaint ----
 
+  private computeLayout(): void {
+    if (!this.wordWrap || !this.canvas || !this.container) { this.visualLayout = null; return }
+    const ctx = this.canvas.getContext('2d')
+    if (!ctx) return
+    ctx.font = `${this.fontSize}px ${this.fontFamily}`
+    const availableWidth = this.container.clientWidth - this.gutterWidth
+    if (availableWidth <= 0) return
+    this.visualLayout = computeVisualLayout(ctx, this.doc.lines, availableWidth, this.tabSize)
+  }
+
   private updateContentHeight(): void {
     if (!this.contentEl) return
-    const h = Math.max(1, this.doc.lines.length) * this.lineHeight + PADDING_TOP * 2
+    const totalRows = this.visualLayout ? this.visualLayout.rows.length : this.doc.lines.length
+    const h = Math.max(1, totalRows) * this.lineHeight + PADDING_TOP * 2
     this.contentEl.style.height = h + 'px'
   }
 
@@ -918,10 +948,16 @@ export class EditorController {
       canvas.height = h
     }
 
+    if (this.layoutDirty) {
+      this.computeLayout()
+      this.layoutDirty = false
+    }
     this.updateContentHeight()
-    if (this.contentWidthDirty) {
+    if (!this.wordWrap && this.contentWidthDirty) {
       this.updateContentWidth()
       this.contentWidthDirty = false
+    } else if (this.wordWrap && this.contentEl && this.container) {
+      this.contentEl.style.width = this.container.clientWidth + 'px'
     }
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
@@ -936,7 +972,8 @@ export class EditorController {
       selection: sel,
       extraCursors: this.extraCursors,
       scrollTop: container.scrollTop,
-      scrollLeft: container.scrollLeft,
+      scrollLeft: this.wordWrap ? 0 : container.scrollLeft,
+      visualLayout: this.visualLayout ?? undefined,
       fontSize: this.fontSize,
       fontFamily: this.fontFamily,
       tabSize: this.tabSize,
@@ -957,7 +994,10 @@ export class EditorController {
     if (!canvas || !container || !opts) return
     const cursorLine = this.doc.cursor.line
     const lineHeight = this.lineHeight
-    const y = PADDING_TOP + cursorLine * lineHeight - container.scrollTop
+    const firstVR = this.visualLayout
+      ? (this.visualLayout.logToFirstVisual[cursorLine] ?? cursorLine)
+      : cursorLine
+    const y = PADDING_TOP + firstVR * lineHeight - container.scrollTop
     const h = canvas.height / (window.devicePixelRatio || 1)
     if (y + lineHeight < 0 || y > h) return
     renderCanvas({ ...opts, cursorVisible: this.cursorVisible, singleLine: cursorLine })
@@ -970,8 +1010,21 @@ export class EditorController {
     const container = this.container!
     const ctx = canvas.getContext('2d')!
     const rect = canvas.getBoundingClientRect()
-    const cssX = e.clientX - rect.left + container.scrollLeft
     const cssY = e.clientY - rect.top + container.scrollTop
+    if (this.visualLayout) {
+      const vr = Math.max(0, Math.min(
+        this.visualLayout.rows.length - 1,
+        Math.floor((cssY - PADDING_TOP) / this.lineHeight),
+      ))
+      const { logLine, startCol, endCol } = this.visualLayout.rows[vr]
+      const textX = e.clientX - rect.left - this.gutterWidth
+      const lineText = this.doc.lines[logLine] ?? ''
+      const colInChunk = textX <= 0
+        ? 0
+        : colFromX(ctx, lineText.slice(startCol, endCol), textX, this.fontSize, this.fontFamily, this.tabSize)
+      return { line: logLine, col: startCol + colInChunk }
+    }
+    const cssX = e.clientX - rect.left + container.scrollLeft
     const line = Math.max(
       0,
       Math.min(this.doc.lines.length - 1, Math.floor((cssY - PADDING_TOP) / this.lineHeight)),
@@ -1003,11 +1056,28 @@ export class EditorController {
     this.updateContentHeight()
     const container = this.container
     if (!container || container.clientHeight === 0) return
-    const cursorY = PADDING_TOP + this.doc.cursor.line * this.lineHeight
+    const lh = this.lineHeight
+
+    if (this.visualLayout) {
+      // Find visual row of cursor
+      const { logToFirstVisual, rows } = this.visualLayout
+      const cursor = this.doc.cursor
+      const firstVR = logToFirstVisual[cursor.line] ?? cursor.line
+      let vr = firstVR
+      for (let r = firstVR; r < rows.length && rows[r].logLine === cursor.line; r++) {
+        if (cursor.col >= rows[r].startCol && cursor.col <= rows[r].endCol) { vr = r; break }
+      }
+      const cursorY = PADDING_TOP + vr * lh
+      if (cursorY < container.scrollTop) container.scrollTop = cursorY
+      else if (cursorY + lh > container.scrollTop + container.clientHeight) container.scrollTop = cursorY + lh - container.clientHeight + PADDING_TOP
+      return
+    }
+
+    const cursorY = PADDING_TOP + this.doc.cursor.line * lh
     if (cursorY < container.scrollTop) {
       container.scrollTop = cursorY
-    } else if (cursorY + this.lineHeight > container.scrollTop + container.clientHeight) {
-      container.scrollTop = cursorY + this.lineHeight - container.clientHeight + PADDING_TOP
+    } else if (cursorY + lh > container.scrollTop + container.clientHeight) {
+      container.scrollTop = cursorY + lh - container.clientHeight + PADDING_TOP
     }
     // Horizontal: scroll cursor x into view
     if (this.canvas) {
@@ -1152,11 +1222,13 @@ export class EditorController {
     if (distTop > 0) this.autoScrollVelocity = -Math.min(distTop * SPEED_PER_PX, MAX_SPEED)
     else if (distBottom > 0) this.autoScrollVelocity = Math.min(distBottom * SPEED_PER_PX, MAX_SPEED)
     else this.autoScrollVelocity = 0
-    const distLeft = rect.left + ZONE + this.gutterWidth - x
-    const distRight = x - rect.right + ZONE
-    if (distLeft > 0) this.autoScrollVelocityX = -Math.min(distLeft * SPEED_PER_PX, MAX_SPEED)
-    else if (distRight > 0) this.autoScrollVelocityX = Math.min(distRight * SPEED_PER_PX, MAX_SPEED)
-    else this.autoScrollVelocityX = 0
+    if (!this.wordWrap) {
+      const distLeft = rect.left + ZONE + this.gutterWidth - x
+      const distRight = x - rect.right + ZONE
+      if (distLeft > 0) this.autoScrollVelocityX = -Math.min(distLeft * SPEED_PER_PX, MAX_SPEED)
+      else if (distRight > 0) this.autoScrollVelocityX = Math.min(distRight * SPEED_PER_PX, MAX_SPEED)
+      else this.autoScrollVelocityX = 0
+    }
     if ((this.autoScrollVelocity !== 0 || this.autoScrollVelocityX !== 0) && this.autoScrollRaf === null)
       this.autoScrollRaf = requestAnimationFrame(this.autoScrollTick)
   }

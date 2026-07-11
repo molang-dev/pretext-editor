@@ -73,9 +73,16 @@ export interface RenderOptions {
   searchCurrentIdx?: number
   theme?: string
   singleLine?: number
+  visualLayout?: VisualLayout
 }
 
-const debug = true
+export type VisualRow = { logLine: number; startCol: number; endCol: number }
+export type VisualLayout = {
+  rows: VisualRow[]
+  logToFirstVisual: number[]
+}
+
+const debug = false
 
 /** Count leading-whitespace depth in spaces (tabs expand to tabSize) */
 function indentDepth(text: string, tabSize: number): number {
@@ -205,6 +212,42 @@ function fillTextWithTabs(
   return xOff
 }
 
+/** Split logical lines into visual rows based on available pixel width. */
+export function computeVisualLayout(
+  ctx: CanvasRenderingContext2D,
+  lines: string[],
+  availableWidth: number,
+  tabSize: number,
+): VisualLayout {
+  const rows: VisualRow[] = []
+  const logToFirstVisual: number[] = []
+  for (let li = 0; li < lines.length; li++) {
+    const text = lines[li]
+    logToFirstVisual.push(rows.length)
+    if (text === '') {
+      rows.push({ logLine: li, startCol: 0, endCol: 0 })
+      continue
+    }
+    let col = 0
+    while (col < text.length) {
+      if (measureWithTabs(ctx, text.slice(col), tabSize) <= availableWidth) {
+        rows.push({ logLine: li, startCol: col, endCol: text.length })
+        break
+      }
+      let lo = col + 1, hi = text.length
+      while (lo < hi) {
+        const mid = (lo + hi + 1) >> 1
+        if (measureWithTabs(ctx, text.slice(col, mid), tabSize) <= availableWidth) lo = mid
+        else hi = mid - 1
+      }
+      const breakAt = Math.max(col + 1, lo)
+      rows.push({ logLine: li, startCol: col, endCol: breakAt })
+      col = breakAt
+    }
+  }
+  return { rows, logToFirstVisual }
+}
+
 export function renderCanvas({
   canvas,
   lines,
@@ -222,6 +265,7 @@ export function renderCanvas({
   searchCurrentIdx = -1,
   theme,
   singleLine,
+  visualLayout,
 }: RenderOptions): { gutterWidth: number } {
   const ctx = canvas.getContext('2d')
   if (!ctx) return { gutterWidth: PADDING_LEFT }
@@ -235,29 +279,46 @@ export function renderCanvas({
 
   ctx.save()
   ctx.scale(dpr, dpr)
+  ctx.font = font
+  const spaceW = ctx.measureText(' ').width
+  const numDigits = String(lines.length).length
+  const gutterWidth = ctx.measureText('0'.repeat(numDigits)).width + 4 * spaceW
 
-  // singleLine mode: clip to that row only, skip background clear of whole canvas
+  // Compute visible range (visual rows for wordWrap, logical lines otherwise)
+  let firstVR = 0, lastVR = 0
+  let firstLine = 0, lastLine = 0
+  if (visualLayout) {
+    if (singleLine !== undefined) {
+      firstVR = visualLayout.logToFirstVisual[singleLine] ?? singleLine
+      lastVR = firstVR
+      while (lastVR + 1 < visualLayout.rows.length && visualLayout.rows[lastVR + 1].logLine === singleLine) lastVR++
+    } else {
+      firstVR = Math.max(0, Math.floor(scrollTop / lineHeight) - 1)
+      lastVR = Math.min(visualLayout.rows.length - 1, Math.ceil((scrollTop + h) / lineHeight))
+    }
+  } else {
+    firstLine = singleLine !== undefined
+      ? Math.max(0, singleLine)
+      : Math.max(0, Math.floor(scrollTop / lineHeight) - 1)
+    lastLine = singleLine !== undefined
+      ? Math.min(lines.length - 1, singleLine)
+      : Math.min(lines.length - 1, Math.ceil((scrollTop + h) / lineHeight))
+  }
+
+  // singleLine mode: clip to that row's pixel rect
   if (singleLine !== undefined) {
-    const lineY = PADDING_TOP + singleLine * lineHeight - scrollTop
+    const clipY = visualLayout
+      ? PADDING_TOP + firstVR * lineHeight - scrollTop
+      : PADDING_TOP + singleLine * lineHeight - scrollTop
+    const clipH = visualLayout ? (lastVR - firstVR + 1) * lineHeight : lineHeight
     ctx.beginPath()
-    ctx.rect(0, lineY, w, lineHeight)
+    ctx.rect(0, clipY, w, clipH)
     ctx.clip()
   }
 
   ctx.fillStyle = tc.bg
   ctx.fillRect(0, 0, w, h)
 
-  const firstLine = singleLine !== undefined
-    ? Math.max(0, singleLine)
-    : Math.max(0, Math.floor(scrollTop / lineHeight) - 1)
-  const lastLine = singleLine !== undefined
-    ? Math.min(lines.length - 1, singleLine)
-    : Math.min(lines.length - 1, Math.ceil((scrollTop + h) / lineHeight))
-
-  ctx.font = font
-  const spaceW = ctx.measureText(' ').width
-  const numDigits = String(lines.length).length
-  const gutterWidth = ctx.measureText('0'.repeat(numDigits)).width + 4 * spaceW
   if (!_guideCache || _guideCache.lines !== lines || _guideCache.tabSize !== tabSize) {
     _guideCache = { lines, tabSize, result: buildGuideData(lines, tabSize) }
   }
@@ -271,193 +332,348 @@ export function renderCanvas({
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
   if (debug && hasSel) console.log(`[render] hasSel=true selStart=${selStart.line} selEnd=${selEnd.line} firstLine=${firstLine} lastLine=${lastLine}`)
-  // Clip search highlights to the visible line range using binary search.
-  // Matches are sorted by anchor.line (regex exec is left-to-right), so we can
-  // find the sub-array that overlaps [firstLine, lastLine] in O(log n).
+
+  // Binary search for search highlights in visible logical line range
+  const firstLogLine = visualLayout
+    ? (firstVR < visualLayout.rows.length ? visualLayout.rows[firstVR].logLine : 0)
+    : firstLine
+  const lastLogLine = visualLayout
+    ? (lastVR < visualLayout.rows.length ? visualLayout.rows[lastVR].logLine : lines.length - 1)
+    : lastLine
   let hiStart = 0
   let hiEnd = 0
   if (searchHighlights && searchHighlights.length > 0) {
-    // First match whose head.line >= firstLine
     let lo = 0, hi = searchHighlights.length
     while (lo < hi) {
       const mid = (lo + hi) >> 1
-      if (searchHighlights[mid].head.line < firstLine) lo = mid + 1
+      if (searchHighlights[mid].head.line < firstLogLine) lo = mid + 1
       else hi = mid
     }
     hiStart = lo
-    // First match whose anchor.line > lastLine
     lo = hiStart; hi = searchHighlights.length
     while (lo < hi) {
       const mid = (lo + hi) >> 1
-      if (searchHighlights[mid].anchor.line <= lastLine) lo = mid + 1
+      if (searchHighlights[mid].anchor.line <= lastLogLine) lo = mid + 1
       else hi = mid
     }
     hiEnd = lo
   }
 
-  for (let i = firstLine; i <= lastLine; i++) {
-    const y = PADDING_TOP + i * lineHeight - scrollTop
-    const lineText = lines[i] ?? ''
+  if (visualLayout) {
+    // ---- Word-wrap path: iterate visual rows ----
+    for (let vr = firstVR; vr <= lastVR; vr++) {
+      const { logLine, startCol, endCol } = visualLayout.rows[vr]
+      const isFirstVR = vr === visualLayout.logToFirstVisual[logLine]
+      const y = PADDING_TOP + vr * lineHeight - scrollTop
+      const lineText = lines[logLine] ?? ''
+      const textY = y + Math.floor((lineHeight - fontSize) / 2)
 
-    // Current line background — only when no active selection
-    if (i === cursor.line && !hasSel) {
-      ctx.fillStyle = tc.currentLineBg
-      ctx.fillRect(0, y, w, lineHeight)
-    }
-
-    // Search match highlights (drawn under selection)
-    if (searchHighlights && hiStart < hiEnd) {
-      ctx.font = font
-      for (let mi = hiStart; mi < hiEnd; mi++) {
-        const m = searchHighlights[mi]
-        if (i < m.anchor.line || i > m.head.line) continue
-        const colS = i === m.anchor.line ? m.anchor.col : 0
-        const colE = i === m.head.line ? m.head.col : lineText.length
-        const xS = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
-        const xE = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
-        ctx.fillStyle = mi === searchCurrentIdx ? tc.searchCurrentBg : tc.searchMatchBg
-        ctx.fillRect(xS, y, Math.max(xE - xS, 2), lineHeight)
+      // Current line background
+      if (logLine === cursor.line && !hasSel) {
+        ctx.fillStyle = tc.currentLineBg
+        ctx.fillRect(0, y, w, lineHeight)
       }
-    }
 
-    // Indent guides — draw at every level strictly contained by this line's indent.
-    // Rule: guide g appears if rawLevel >= g (non-empty) or effectiveLevel >= g (empty).
-    // This means {-lines and }-lines at level g-1 are excluded naturally.
-    const rl = rawLevels[i]
-    const el = effectiveLevels[i] ?? 0
-    const maxG = rl === -1 ? el : rl
-    for (let g = 1; g <= maxG; g++) {
-      const gx = Math.floor(gutterWidth - scrollLeft + (g - 1) * indentUnit * spaceW)
-      ctx.fillStyle = g === activeGuideLevel ? tc.indentGuideActive : tc.indentGuide
-      ctx.fillRect(gx, y, 1, lineHeight)
-    }
-
-    // Selection highlight (primary)
-    if (hasSel && i >= selStart.line && i <= selEnd.line) {
-      const colStart = i === selStart.line ? selStart.col : 0
-      const colEnd = i === selEnd.line ? selEnd.col : lineText.length
-
-      ctx.font = font
-      const xStart = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
-      const xEnd =
-        i === selEnd.line
-          ? gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
-          : gutterWidth - scrollLeft + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
-
-      ctx.fillStyle = tc.selectionBg
-      ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
-    }
-
-    // Selection highlight (extra cursors)
-    for (const slot of extraCursors ?? []) {
-      if (!slot.anchor) continue
-      const [exS, exE] = normalizeSelection({ anchor: slot.anchor, head: slot.head })
-      if (isCollapsed({ anchor: exS, head: exE }) || i < exS.line || i > exE.line) continue
-      const colStart = i === exS.line ? exS.col : 0
-      const colEnd = i === exE.line ? exE.col : lineText.length
-      const xStart = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
-      const xEnd =
-        i === exE.line
-          ? gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
-          : gutterWidth - scrollLeft + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
-      ctx.fillStyle = tc.selectionBg
-      ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
-    }
-
-    // Gutter
-    ctx.fillStyle = tc.gutterBg
-    ctx.fillRect(0, y, gutterWidth, lineHeight)
-
-    // Line number
-    ctx.fillStyle = i === cursor.line ? tc.fg : tc.gutterFg
-    ctx.textAlign = 'right'
-    ctx.textBaseline = 'top'
-    ctx.fillText(String(i + 1), gutterWidth - 2 * spaceW, y + Math.floor((lineHeight - fontSize) / 2))
-
-    // Line text (syntax-highlighted or plain) + cursors
-    // Clip to content area [gutterWidth, w]: half-chars at boundaries are pixel-clipped.
-    // Skip spans fully behind the gutter (xOff + spanW <= gutterWidth) or break when
-    // fully past the right edge (xOff >= w) to avoid wasted fillText calls.
-    // Always draw lineText chars (not span.text) so text position stays in sync
-    // with selection even when tokenLines are stale (useDeferredValue lag).
-    // Monaco-style: never clear tokens — if stale spans run short, extend with
-    // the last span's color rather than falling back to FG (avoids white flash).
-    const tokenLine = tokenLines?.[i]
-    const textY = y + Math.floor((lineHeight - fontSize) / 2)
-    ctx.textAlign = 'left'
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(gutterWidth, 0, w - gutterWidth, h)
-    ctx.clip()
-    if (tokenLine && tokenLine.length > 0) {
-      let xOff = gutterWidth - scrollLeft
-      let charOff = 0
-      let drawFrom = -1
-      let drawTo = 0
-      for (const span of tokenLine) {
-        if (charOff >= lineText.length) break
-        const end = Math.min(charOff + span.text.length, lineText.length)
-        const chunk = lineText.slice(charOff, end)
-        const spanW = measureWithTabs(ctx, chunk, tabSize)
-        if (xOff + spanW <= gutterWidth) {
-          xOff += spanW
-          charOff = end
-          continue
-        }
-        if (xOff >= w) break
-        if (drawFrom === -1) drawFrom = charOff
-        ctx.fillStyle = span.color
-        xOff = fillTextWithTabs(ctx, chunk, xOff, textY, tabSize)
-        drawTo = end
-        charOff = end
-      }
-      if (charOff < lineText.length && xOff < w) {
-        // Stale spans ran out — extend with last span's color, not FG
-        const chunk = lineText.slice(charOff)
-        const spanW = measureWithTabs(ctx, chunk, tabSize)
-        if (xOff + spanW > gutterWidth) {
-          if (drawFrom === -1) drawFrom = charOff
-          ctx.fillStyle = tokenLine[tokenLine.length - 1].color
-          fillTextWithTabs(ctx, chunk, xOff, textY, tabSize)
-          drawTo = lineText.length
+      // Search highlights
+      if (searchHighlights && hiStart < hiEnd) {
+        ctx.font = font
+        for (let mi = hiStart; mi < hiEnd; mi++) {
+          const m = searchHighlights[mi]
+          if (logLine < m.anchor.line || logLine > m.head.line) continue
+          const mColS = Math.max(startCol, logLine === m.anchor.line ? m.anchor.col : 0)
+          const mColE = Math.min(endCol, logLine === m.head.line ? m.head.col : lineText.length)
+          if (mColS >= mColE) continue
+          const xS = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, mColS), tabSize)
+          const xE = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, mColE), tabSize)
+          ctx.fillStyle = mi === searchCurrentIdx ? tc.searchCurrentBg : tc.searchMatchBg
+          ctx.fillRect(xS, y, Math.max(xE - xS, 2), lineHeight)
         }
       }
-    } else {
-      const xLineStart = gutterWidth - scrollLeft
-      const lineW = measureWithTabs(ctx, lineText, tabSize)
-      if (xLineStart + lineW > gutterWidth && xLineStart < w) {
-        const leftClip = Math.max(0, gutterWidth - xLineStart)
-        const charStart = leftClip > 0
-          ? colFromX(ctx, lineText, leftClip, fontSize, fontFamily, tabSize)
-          : 0
-        const charEnd = Math.min(
-          lineText.length,
-          colFromX(ctx, lineText, w - xLineStart, fontSize, fontFamily, tabSize) + 1,
-        )
-        const drawX = xLineStart + measureWithTabs(ctx, lineText.slice(0, charStart), tabSize)
-        ctx.fillStyle = tc.fg
-        fillTextWithTabs(ctx, lineText.slice(charStart, charEnd), drawX, textY, tabSize)
+
+      // Indent guides — first visual row of logical line only
+      if (isFirstVR) {
+        const rl = rawLevels[logLine]
+        const el = effectiveLevels[logLine] ?? 0
+        const maxG = rl === -1 ? el : rl
+        for (let g = 1; g <= maxG; g++) {
+          const gx = Math.floor(gutterWidth + (g - 1) * indentUnit * spaceW)
+          ctx.fillStyle = g === activeGuideLevel ? tc.indentGuideActive : tc.indentGuide
+          ctx.fillRect(gx, y, 1, lineHeight)
+        }
       }
-    }
 
-    // Cursor (primary)
-    if (cursorVisible && i === cursor.line) {
-      const textBefore = lineText.slice(0, cursor.col)
-      const cursorX = gutterWidth - scrollLeft + measureWithTabs(ctx, textBefore, tabSize)
-      ctx.fillStyle = tc.cursorColor
-      ctx.fillRect(Math.floor(cursorX), y + 2, 2, lineHeight - 4)
-    }
+      // Selection (primary)
+      if (hasSel && logLine >= selStart.line && logLine <= selEnd.line) {
+        const rawColStart = logLine === selStart.line ? selStart.col : 0
+        const rawColEnd = logLine === selEnd.line ? selEnd.col : lineText.length
+        if (rawColStart < endCol && rawColEnd > startCol) {
+          const visColStart = Math.max(startCol, rawColStart)
+          const isSelEnd = logLine === selEnd.line && rawColEnd <= endCol
+          const xStart = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, visColStart), tabSize)
+          const xEnd = isSelEnd
+            ? gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, rawColEnd), tabSize)
+            : gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, endCol), tabSize) + spaceW * 0.5
+          ctx.fillStyle = tc.selectionBg
+          ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
+        }
+      }
 
-    // Cursors (extra)
-    if (cursorVisible) {
+      // Selection (extra cursors)
       for (const slot of extraCursors ?? []) {
-        if (i !== slot.head.line) continue
-        const xExtra = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, slot.head.col), tabSize)
-        ctx.fillStyle = tc.cursorColor
-        ctx.fillRect(Math.floor(xExtra), y + 2, 2, lineHeight - 4)
+        if (!slot.anchor) continue
+        const [exS, exE] = normalizeSelection({ anchor: slot.anchor, head: slot.head })
+        if (isCollapsed({ anchor: exS, head: exE }) || logLine < exS.line || logLine > exE.line) continue
+        const rawColStart = logLine === exS.line ? exS.col : 0
+        const rawColEnd = logLine === exE.line ? exE.col : lineText.length
+        if (rawColStart < endCol && rawColEnd > startCol) {
+          const visColStart = Math.max(startCol, rawColStart)
+          const isSelEnd = logLine === exE.line && rawColEnd <= endCol
+          const xStart = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, visColStart), tabSize)
+          const xEnd = isSelEnd
+            ? gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, rawColEnd), tabSize)
+            : gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, endCol), tabSize) + spaceW * 0.5
+          ctx.fillStyle = tc.selectionBg
+          ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
+        }
       }
+
+      // Gutter background
+      ctx.fillStyle = tc.gutterBg
+      ctx.fillRect(0, y, gutterWidth, lineHeight)
+
+      // Line number — only on first visual row of logical line; empty gutter on wrapped rows
+      ctx.textBaseline = 'top'
+      if (isFirstVR) {
+        ctx.fillStyle = logLine === cursor.line ? tc.fg : tc.gutterFg
+        ctx.textAlign = 'right'
+        ctx.fillText(String(logLine + 1), gutterWidth - 2 * spaceW, y + Math.floor((lineHeight - fontSize) / 2))
+      }
+
+      // Text + cursors (clipped to content area)
+      ctx.textAlign = 'left'
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(gutterWidth, 0, w - gutterWidth, h)
+      ctx.clip()
+      const tokenLine = tokenLines?.[logLine]
+      if (tokenLine && tokenLine.length > 0) {
+        let charOff = 0
+        for (const span of tokenLine) {
+          const spanEnd = Math.min(charOff + span.text.length, lineText.length)
+          if (spanEnd <= startCol) { charOff = spanEnd; continue }
+          if (charOff >= endCol) break
+          const drawStart = Math.max(charOff, startCol)
+          const drawEnd = Math.min(spanEnd, endCol)
+          const chunkX = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, drawStart), tabSize)
+          ctx.fillStyle = span.color
+          fillTextWithTabs(ctx, lineText.slice(drawStart, drawEnd), chunkX, textY, tabSize)
+          charOff = spanEnd
+        }
+        // Stale-span fallback: extend with last span's color
+        if (charOff < endCol && tokenLine.length > 0) {
+          const drawStart = Math.max(charOff, startCol)
+          if (drawStart < endCol) {
+            const chunkX = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, drawStart), tabSize)
+            ctx.fillStyle = tokenLine[tokenLine.length - 1].color
+            fillTextWithTabs(ctx, lineText.slice(drawStart, endCol), chunkX, textY, tabSize)
+          }
+        }
+      } else {
+        if (debug) console.log(`[draw line ${logLine}] plain cols ${startCol}..${endCol} of ${lineText.length}  xStart=${gutterWidth}  canvasW=${w}`)
+        ctx.fillStyle = tc.fg
+        fillTextWithTabs(ctx, lineText.slice(startCol, endCol), gutterWidth, textY, tabSize)
+      }
+
+      // Cursor (primary)
+      if (cursorVisible && cursor.line === logLine) {
+        const col = cursor.col
+        if (col >= startCol && col <= endCol) {
+          const cursorX = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, col), tabSize)
+          ctx.fillStyle = tc.cursorColor
+          ctx.fillRect(Math.floor(cursorX), y + 2, 2, lineHeight - 4)
+        }
+      }
+
+      // Cursors (extra)
+      if (cursorVisible) {
+        for (const slot of extraCursors ?? []) {
+          if (slot.head.line !== logLine) continue
+          const col = slot.head.col
+          if (col < startCol || col > endCol) continue
+          const xExtra = gutterWidth + measureWithTabs(ctx, lineText.slice(startCol, col), tabSize)
+          ctx.fillStyle = tc.cursorColor
+          ctx.fillRect(Math.floor(xExtra), y + 2, 2, lineHeight - 4)
+        }
+      }
+      ctx.restore()
     }
-    ctx.restore()
+  } else {
+    // ---- Normal path: iterate logical lines ----
+    for (let i = firstLine; i <= lastLine; i++) {
+      const y = PADDING_TOP + i * lineHeight - scrollTop
+      const lineText = lines[i] ?? ''
+
+      // Current line background — only when no active selection
+      if (i === cursor.line && !hasSel) {
+        ctx.fillStyle = tc.currentLineBg
+        ctx.fillRect(0, y, w, lineHeight)
+      }
+
+      // Search match highlights (drawn under selection)
+      if (searchHighlights && hiStart < hiEnd) {
+        ctx.font = font
+        for (let mi = hiStart; mi < hiEnd; mi++) {
+          const m = searchHighlights[mi]
+          if (i < m.anchor.line || i > m.head.line) continue
+          const colS = i === m.anchor.line ? m.anchor.col : 0
+          const colE = i === m.head.line ? m.head.col : lineText.length
+          const xS = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colS), tabSize)
+          const xE = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colE), tabSize)
+          ctx.fillStyle = mi === searchCurrentIdx ? tc.searchCurrentBg : tc.searchMatchBg
+          ctx.fillRect(xS, y, Math.max(xE - xS, 2), lineHeight)
+        }
+      }
+
+      // Indent guides
+      const rl = rawLevels[i]
+      const el = effectiveLevels[i] ?? 0
+      const maxG = rl === -1 ? el : rl
+      for (let g = 1; g <= maxG; g++) {
+        const gx = Math.floor(gutterWidth - scrollLeft + (g - 1) * indentUnit * spaceW)
+        ctx.fillStyle = g === activeGuideLevel ? tc.indentGuideActive : tc.indentGuide
+        ctx.fillRect(gx, y, 1, lineHeight)
+      }
+
+      // Selection highlight (primary)
+      if (hasSel && i >= selStart.line && i <= selEnd.line) {
+        const colStart = i === selStart.line ? selStart.col : 0
+        const colEnd = i === selEnd.line ? selEnd.col : lineText.length
+
+        ctx.font = font
+        const xStart = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
+        const xEnd =
+          i === selEnd.line
+            ? gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
+            : gutterWidth - scrollLeft + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
+
+        ctx.fillStyle = tc.selectionBg
+        ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
+      }
+
+      // Selection highlight (extra cursors)
+      for (const slot of extraCursors ?? []) {
+        if (!slot.anchor) continue
+        const [exS, exE] = normalizeSelection({ anchor: slot.anchor, head: slot.head })
+        if (isCollapsed({ anchor: exS, head: exE }) || i < exS.line || i > exE.line) continue
+        const colStart = i === exS.line ? exS.col : 0
+        const colEnd = i === exE.line ? exE.col : lineText.length
+        const xStart = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colStart), tabSize)
+        const xEnd =
+          i === exE.line
+            ? gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, colEnd), tabSize)
+            : gutterWidth - scrollLeft + measureWithTabs(ctx, lineText, tabSize) + ctx.measureText(' ').width * 0.5
+        ctx.fillStyle = tc.selectionBg
+        ctx.fillRect(xStart, y, Math.max(xEnd - xStart, 2), lineHeight)
+      }
+
+      // Gutter
+      ctx.fillStyle = tc.gutterBg
+      ctx.fillRect(0, y, gutterWidth, lineHeight)
+
+      // Line number
+      ctx.fillStyle = i === cursor.line ? tc.fg : tc.gutterFg
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'top'
+      ctx.fillText(String(i + 1), gutterWidth - 2 * spaceW, y + Math.floor((lineHeight - fontSize) / 2))
+
+      // Line text (syntax-highlighted or plain) + cursors
+      // Clip to content area [gutterWidth, w]: half-chars at boundaries are pixel-clipped.
+      // Skip spans fully behind the gutter (xOff + spanW <= gutterWidth) or break when
+      // fully past the right edge (xOff >= w) to avoid wasted fillText calls.
+      // Always draw lineText chars (not span.text) so text position stays in sync
+      // with selection even when tokenLines are stale (useDeferredValue lag).
+      // Monaco-style: never clear tokens — if stale spans run short, extend with
+      // the last span's color rather than falling back to FG (avoids white flash).
+      const tokenLine = tokenLines?.[i]
+      const textY = y + Math.floor((lineHeight - fontSize) / 2)
+      ctx.textAlign = 'left'
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(gutterWidth, 0, w - gutterWidth, h)
+      ctx.clip()
+      if (tokenLine && tokenLine.length > 0) {
+        let xOff = gutterWidth - scrollLeft
+        let charOff = 0
+        let drawFrom = -1
+        let drawTo = 0
+        for (const span of tokenLine) {
+          if (charOff >= lineText.length) break
+          const end = Math.min(charOff + span.text.length, lineText.length)
+          const chunk = lineText.slice(charOff, end)
+          const spanW = measureWithTabs(ctx, chunk, tabSize)
+          if (xOff + spanW <= gutterWidth) {
+            xOff += spanW
+            charOff = end
+            continue
+          }
+          if (xOff >= w) break
+          if (drawFrom === -1) drawFrom = charOff
+          ctx.fillStyle = span.color
+          xOff = fillTextWithTabs(ctx, chunk, xOff, textY, tabSize)
+          drawTo = end
+          charOff = end
+        }
+        if (charOff < lineText.length && xOff < w) {
+          const chunk = lineText.slice(charOff)
+          const spanW = measureWithTabs(ctx, chunk, tabSize)
+          if (xOff + spanW > gutterWidth) {
+            if (drawFrom === -1) drawFrom = charOff
+            ctx.fillStyle = tokenLine[tokenLine.length - 1].color
+            fillTextWithTabs(ctx, chunk, xOff, textY, tabSize)
+            drawTo = lineText.length
+          }
+        }
+        if (debug) console.log(`[draw line ${i}] cols ${drawFrom}..${drawTo} of ${lineText.length}  xStart=${gutterWidth - scrollLeft}  canvasW=${w}`)
+      } else {
+        const xLineStart = gutterWidth - scrollLeft
+        const lineW = measureWithTabs(ctx, lineText, tabSize)
+        if (xLineStart + lineW > gutterWidth && xLineStart < w) {
+          const leftClip = Math.max(0, gutterWidth - xLineStart)
+          const charStart = leftClip > 0
+            ? colFromX(ctx, lineText, leftClip, fontSize, fontFamily, tabSize)
+            : 0
+          const charEnd = Math.min(
+            lineText.length,
+            colFromX(ctx, lineText, w - xLineStart, fontSize, fontFamily, tabSize) + 1,
+          )
+          const drawX = xLineStart + measureWithTabs(ctx, lineText.slice(0, charStart), tabSize)
+          ctx.fillStyle = tc.fg
+          fillTextWithTabs(ctx, lineText.slice(charStart, charEnd), drawX, textY, tabSize)
+          if (debug) console.log(`[draw line ${i}] plain cols ${charStart}..${charEnd} of ${lineText.length}  xStart=${xLineStart}  canvasW=${w}`)
+        } else {
+          if (debug) console.log(`[draw line ${i}] plain skipped  xStart=${xLineStart}  lineW=${lineW}  canvasW=${w}`)
+        }
+      }
+
+      // Cursor (primary)
+      if (cursorVisible && i === cursor.line) {
+        const textBefore = lineText.slice(0, cursor.col)
+        const cursorX = gutterWidth - scrollLeft + measureWithTabs(ctx, textBefore, tabSize)
+        ctx.fillStyle = tc.cursorColor
+        ctx.fillRect(Math.floor(cursorX), y + 2, 2, lineHeight - 4)
+      }
+
+      // Cursors (extra)
+      if (cursorVisible) {
+        for (const slot of extraCursors ?? []) {
+          if (i !== slot.head.line) continue
+          const xExtra = gutterWidth - scrollLeft + measureWithTabs(ctx, lineText.slice(0, slot.head.col), tabSize)
+          ctx.fillStyle = tc.cursorColor
+          ctx.fillRect(Math.floor(xExtra), y + 2, 2, lineHeight - 4)
+        }
+      }
+      ctx.restore()
+    }
   }
 
   ctx.restore()
