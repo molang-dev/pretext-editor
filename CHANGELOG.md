@@ -4,6 +4,21 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.0] — 2026-07-12
+
+### Added
+- **`cursor-change` event** — React (`onCursorChange`), Vue (`cursor-change`), and Svelte (`cursor-change`) wrappers now emit `{ line: number; col: number }` on every cursor position change.
+- **Status bar in all demos** — every demo (Vue, React, Svelte, Angular, Vanilla) now shows a bottom status bar with line/column, tab size, encoding, and current language.
+- **Unified demo feature set** — React, Svelte, Angular, and Vanilla demos now match the Vue demo: 38 languages, 3 themes, font-size selector, Open File button with auto language detection, and word wrap toggle.
+
+### Fixed
+- **Language switch no longer flashes white** — syntax colours are preserved while the new grammar loads; tokens are replaced incrementally as the worker responds instead of clearing all at once.
+- **Cursor resets blink on any position change** — clicking or moving the cursor always shows it immediately rather than holding the current blink phase.
+- **Deleting the last line(s) immediately repaints** — the canvas now refreshes right away instead of waiting for a worker batch that never arrives when the deletion is at end-of-file.
+- **`wordWrap` prop now works in React and Svelte wrappers** — the option was accepted but not forwarded to the controller.
+
+---
+
 ## [0.5.0] — 2026-06-24
 
 ### Added
