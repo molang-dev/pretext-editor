@@ -7,15 +7,7 @@
       <label class="ctrl-label">
         Language:
         <select v-model="language" class="ctrl-select">
-          <option value="typescript">TypeScript</option>
-          <option value="javascript">JavaScript</option>
-          <option value="python">Python</option>
-          <option value="go">Go</option>
-          <option value="rust">Rust</option>
-          <option value="json">JSON</option>
-          <option value="css">CSS</option>
-          <option value="html">HTML</option>
-          <option value="markdown">Markdown</option>
+          <option v-for="lang in LANGUAGES" :key="lang.value" :value="lang.value">{{ lang.label }}</option>
         </select>
       </label>
 
@@ -35,8 +27,9 @@
         </select>
       </label>
 
-      <button class="btn" @click="scrollToTop">Scroll to Top</button>
+      <button class="btn" @click="openFile">Open File</button>
       <button class="btn" :class="{ 'btn--active': wordWrap }" @click="wordWrap = !wordWrap">换行</button>
+      <input ref="fileInputRef" type="file" class="file-input-hidden" @change="onFileChange" />
     </div>
 
     <div class="editor-wrap">
@@ -58,6 +51,84 @@ import { ref, computed } from 'vue'
 import { PretextEditor } from 'pretext-editor/vue'
 import type { PretextEditorHandle } from 'pretext-editor/vue'
 
+const LANGUAGES = [
+  { value: 'c',           label: 'C' },
+  { value: 'cpp',         label: 'C++' },
+  { value: 'csharp',      label: 'C#' },
+  { value: 'css',         label: 'CSS' },
+  { value: 'dart',        label: 'Dart' },
+  { value: 'fish',        label: 'Fish' },
+  { value: 'glsl',        label: 'GLSL' },
+  { value: 'go',          label: 'Go' },
+  { value: 'graphql',     label: 'GraphQL' },
+  { value: 'haml',        label: 'Haml' },
+  { value: 'html',        label: 'HTML' },
+  { value: 'java',        label: 'Java' },
+  { value: 'javascript',  label: 'JavaScript' },
+  { value: 'json',        label: 'JSON' },
+  { value: 'jsonc',       label: 'JSONC' },
+  { value: 'jsx',         label: 'JSX' },
+  { value: 'kotlin',      label: 'Kotlin' },
+  { value: 'less',        label: 'Less' },
+  { value: 'lua',         label: 'Lua' },
+  { value: 'markdown',    label: 'Markdown' },
+  { value: 'php',         label: 'PHP' },
+  { value: 'postcss',     label: 'PostCSS' },
+  { value: 'python',      label: 'Python' },
+  { value: 'r',           label: 'R' },
+  { value: 'ruby',        label: 'Ruby' },
+  { value: 'rust',        label: 'Rust' },
+  { value: 'scala',       label: 'Scala' },
+  { value: 'scss',        label: 'SCSS' },
+  { value: 'shellscript', label: 'Shell Script' },
+  { value: 'sql',         label: 'SQL' },
+  { value: 'svelte',      label: 'Svelte' },
+  { value: 'swift',       label: 'Swift' },
+  { value: 'toml',        label: 'TOML' },
+  { value: 'tsx',         label: 'TSX' },
+  { value: 'typescript',  label: 'TypeScript' },
+  { value: 'vue',         label: 'Vue' },
+  { value: 'xml',         label: 'XML' },
+  { value: 'yaml',        label: 'YAML' },
+]
+
+const EXT_TO_LANG: Record<string, string> = {
+  ts: 'typescript', tsx: 'tsx',
+  js: 'javascript', jsx: 'jsx',
+  py: 'python',
+  rs: 'rust',
+  go: 'go',
+  c: 'c', h: 'c',
+  cpp: 'cpp', cc: 'cpp', cxx: 'cpp', hpp: 'cpp',
+  cs: 'csharp',
+  java: 'java',
+  kt: 'kotlin',
+  swift: 'swift',
+  css: 'css',
+  html: 'html', htm: 'html',
+  xml: 'xml',
+  graphql: 'graphql', gql: 'graphql',
+  sh: 'shellscript', bash: 'shellscript', zsh: 'shellscript', fish: 'fish',
+  lua: 'lua',
+  yaml: 'yaml', yml: 'yaml',
+  rb: 'ruby',
+  json: 'json',
+  jsonc: 'jsonc',
+  php: 'php',
+  r: 'r',
+  dart: 'dart',
+  scala: 'scala',
+  scss: 'scss',
+  less: 'less',
+  vue: 'vue',
+  svelte: 'svelte',
+  toml: 'toml',
+  md: 'markdown', mdx: 'markdown',
+  sql: 'sql',
+  haml: 'haml',
+  glsl: 'glsl', vert: 'glsl', frag: 'glsl',
+}
+
 const SAMPLE_CODE = `function fibonacci(n: number): number {
   if (n <= 1) return n
   return fibonacci(n - 1) + fibonacci(n - 2)
@@ -75,6 +146,7 @@ const theme = ref('dark-plus')
 const fontSize = ref(14)
 const wordWrap = ref(false)
 const editorRef = ref<PretextEditorHandle>()
+const fileInputRef = ref<HTMLInputElement>()
 
 const fontSizeOptions = computed(() => {
   const opts = []
@@ -82,8 +154,20 @@ const fontSizeOptions = computed(() => {
   return opts
 })
 
-function scrollToTop() {
-  editorRef.value?.scrollToLine(0)
+function openFile() {
+  fileInputRef.value?.click()
+}
+
+function onFileChange(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file) return
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+  const detected = EXT_TO_LANG[ext]
+  if (detected) language.value = detected
+  const reader = new FileReader()
+  reader.onload = () => { code.value = reader.result as string }
+  reader.readAsText(file)
+  ;(e.target as HTMLInputElement).value = ''
 }
 </script>
 
@@ -109,4 +193,5 @@ function scrollToTop() {
 }
 .btn--active { background: #1177bb; outline: 1px solid #4fc3f7; }
 .editor-wrap { flex: 1; overflow: hidden; }
+.file-input-hidden { display: none; }
 </style>

@@ -142,7 +142,13 @@ function tokenizeRange(from: number, to: number): TokenizedLine[] {
   const result: TokenizedLine[] = []
 
   for (let i = from; i < to && i < lines.length; i++) {
-    const res = grammar.tokenizeLine2(lines[i], stack)
+    const res = grammar.tokenizeLine2(lines[i], stack, 500)
+    if (res.stoppedEarly) {
+      tokenLines[i] = []
+      lineEndStacks[i] = null
+      result.push([])
+      continue
+    }
     const raw = res.tokens
     const n = raw.length / 2
     const tl: TokenizedLine = []
@@ -178,7 +184,12 @@ function tokenizeRangePreview(from: number, to: number): TokenizedLine[] {
   let stack: StateStack = INITIAL
   const result: TokenizedLine[] = []
   for (let i = from; i < to && i < lines.length; i++) {
-    const res = grammar.tokenizeLine2(lines[i], stack)
+    const res = grammar.tokenizeLine2(lines[i], stack, 500)
+    if (res.stoppedEarly) {
+      tokenLines[i] = []
+      result.push([])
+      continue
+    }
     const raw = res.tokens
     const n = raw.length / 2
     const tl: TokenizedLine = []
