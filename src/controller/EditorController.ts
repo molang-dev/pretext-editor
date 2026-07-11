@@ -672,6 +672,7 @@ export class EditorController {
   // ---- Internal: State notification ----
 
   private notifyAndRepaint(): void {
+    this.resetCursorBlink()
     this.buildMenuItems()
     this.onStateChange?.()
     this.repaint()
@@ -1208,7 +1209,6 @@ export class EditorController {
       if (canDirty) this.dirtyLines = new Set([prevLine, newCursor.line])
     }
 
-    this.resetCursorBlink()
     this.notifyAndRepaint()
     e.stopPropagation()
     ;(e.currentTarget as HTMLCanvasElement).setPointerCapture(e.pointerId)
