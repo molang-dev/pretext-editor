@@ -4,6 +4,13 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.1] — 2026-07-12
+
+### Fixed
+- **Multiple Vue editors on the same page now all highlight correctly** — the shared `eagerWorker` singleton caused the second instance to overwrite the first instance's worker message handler, leaving all but the last-mounted editor without syntax highlighting. Each instance now creates its own worker independently.
+
+---
+
 ## [0.6.0] — 2026-07-12
 
 ### Added
