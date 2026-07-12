@@ -4,6 +4,17 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.3] — 2026-07-13
+
+### Added
+- **Light theme for search bar and context menu** — when a light theme (e.g. `github-light`) is active, the search bar and context menu now render with appropriate light colours instead of the hardcoded dark palette. Theme type is detected automatically from the theme name.
+
+### Changed
+- **`onChange` replaced by `onChanged(r1, c1, r2, c2, oldValue, newValue)`** — the change callback now receives the exact range that was modified and the old/new text for that range, instead of the full document string. All edit paths (typing, replace-all, file open, undo, redo) are covered. The `value` prop continues to set the initial/controlled value.
+- **CSS scoping** — all editor CSS classes are now scoped under `.pretext-editor` as the root element (e.g. `.pretext-editor .searchbar`). Custom stylesheets targeting the old flat `pteic-*` class names will need to be updated.
+
+---
+
 ## [0.6.2] — 2026-07-12
 
 ### Fixed
