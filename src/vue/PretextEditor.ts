@@ -106,10 +106,17 @@ export const PretextEditor = defineComponent({
       },
     })
 
+    let lastEmittedValue = props.value
+
     const onStateChange = () => {
       const s = ctrl!.getState()
       Object.assign(state, s)
       emit('cursor-change', s.doc.cursor)
+      const newValue = s.doc.lines.join('\n')
+      if (newValue !== lastEmittedValue) {
+        lastEmittedValue = newValue
+        emit('update:value', newValue)
+      }
       // Focus find input when search bar opens
       if (s.searchState.isOpen && !state.searchState.isOpen === false) {
         // search was just opened — handled by the next tick watcher
@@ -136,7 +143,6 @@ export const PretextEditor = defineComponent({
     onMounted(() => {
       ctrl = new EditorController({
         value: props.value,
-        onChange: (v) => emit('update:value', v),
         language: props.language,
         fontSize: props.fontSize,
         fontFamily: props.fontFamily,

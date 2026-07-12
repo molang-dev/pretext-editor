@@ -46,3 +46,11 @@
 - Icon component classes use `icon icon-<name>` (e.g. `icon icon-arrowdown`, `icon icon-chevrondown`)
 - Toggle button states use `button--active`; collapsed chevron uses `icon-chevrondown--collapsed`
 - All framework wrappers (React, Vue, Angular, Svelte) and demos (vanilla, Angular) updated to the new class names
+
+## Delta Change Callback (`onChanged`)
+
+- Replaced `onChange(value: string)` with `onChanged(r1, c1, r2, c2, oldValue, newValue)` on `EditorController` and all framework wrappers
+- `(r1, c1)` is the start and `(r2, c2)` is the end of the replaced range in the pre-change document (0-indexed)
+- `oldValue` is the text that was replaced; `newValue` is the text inserted in its place
+- Covers all edit paths: regular typing, replaceAll, readFromFile, undo, redo
+- Vue, Svelte, and Angular wrappers emit their full-value binding events (`update:value` / `change`) from `onStateChange` instead, only when the document text actually changes

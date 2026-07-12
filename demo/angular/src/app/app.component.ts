@@ -284,7 +284,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
       )
       this.ctrl = new EditorController({
         value: this.code,
-        onChange: (v: string) => this.ngZone.run(() => { this.code = v }),
         language: this.language,
         theme: this.theme,
         fontSize: this.fontSize,
@@ -302,6 +301,8 @@ export class AppComponent implements AfterViewInit, OnDestroy {
           this.resolvedMenuItems = s.menuItems
           this.totalHeight = Math.max(1, s.doc.lines.length) * FONT_SIZE_TO_LINE_HEIGHT(this.fontSize) + 16
           this.cursor = s.doc.cursor
+          const newCode = s.doc.lines.join('\n')
+          if (newCode !== this.code) this.ngZone.run(() => { this.code = newCode })
           const wasClosed = !this.searchState.isOpen
           this.searchState = { ...s.searchState }
           if (wasClosed && this.searchState.isOpen) {

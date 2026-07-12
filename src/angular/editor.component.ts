@@ -98,7 +98,6 @@ export class PretextEditorComponent implements AfterViewInit, OnDestroy, OnChang
     this.ngZone.runOutsideAngular(() => {
       this.ctrl = new EditorController({
         value: this.value,
-        onChange: (v: string) => this.ngZone.run(() => this.valueChange.emit(v)),
         language: this.language,
         fontSize: this.fontSize,
         fontFamily: this.fontFamily,
@@ -116,6 +115,8 @@ export class PretextEditorComponent implements AfterViewInit, OnDestroy, OnChang
           const s = this.ctrl.getState()
           this.menuPos = s.menuPos
           this.resolvedMenuItems = s.menuItems
+          const newValue = s.doc.lines.join('\n')
+          if (newValue !== this.value) this.ngZone.run(() => this.valueChange.emit(newValue))
           this.cdr.detectChanges()
         },
         this.contentRef.nativeElement,

@@ -85,7 +85,9 @@ export default function App() {
   const editorRef = useRef<PretextEditorHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleChange = useCallback((value: string) => setCode(value), [])
+  const handleChanged = useCallback((r1: number, c1: number, r2: number, c2: number, oldValue: string, newValue: string) => {
+    console.log('changed', r1, c1, r2, c2, JSON.stringify(oldValue), JSON.stringify(newValue))
+  }, [])
 
   function openFile() { fileInputRef.current?.click() }
 
@@ -155,7 +157,7 @@ export default function App() {
         <PretextEditor
           ref={editorRef}
           value={code}
-          onChange={handleChange}
+          onChanged={handleChanged}
           onCursorChange={setCursor}
           language={language}
           fontSize={fontSize}

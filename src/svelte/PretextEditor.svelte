@@ -65,12 +65,19 @@
   let prevSearchOpen = false;
   let prevFocusToken = 0;
 
+  let lastEmittedValue = value;
+
   const onStateChange = () => {
     const s = ctrl.getState();
     menuPos = s.menuPos;
     resolvedMenuItems = s.menuItems;
     searchState = s.searchState;
     dispatch('cursor-change', s.doc.cursor);
+    const newValue = s.doc.lines.join('\n');
+    if (newValue !== lastEmittedValue) {
+      lastEmittedValue = newValue;
+      dispatch('change', newValue);
+    }
 
     // Auto-focus find input when search first opens, or when Ctrl+F re-triggers
     if (s.searchState.isOpen && (!prevSearchOpen || s.searchState.focusToken !== prevFocusToken)) {
@@ -112,9 +119,6 @@
   onMount(() => {
     ctrl = new EditorController({
       value,
-      onChange: (v) => {
-        dispatch('change', v);
-      },
       language,
       fontSize,
       fontFamily,

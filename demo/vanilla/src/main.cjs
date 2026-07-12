@@ -251,7 +251,6 @@ document.body.appendChild(statusBar)
 // --- EditorController ---
 var ctrl = new EditorController({
   value: SAMPLE,
-  onChange: function() {},
   language: language,
   theme: theme,
   fontSize: fontSize,

@@ -34,7 +34,7 @@ export type { SearchState, SearchActions } from '../core/search'
 
 export interface PretextEditorProps {
   value: string
-  onChange: (value: string) => void
+  onChanged?: import('../controller/EditorController').OnChangedCallback
   language?: string
   fontSize?: number
   fontFamily?: string
@@ -58,7 +58,7 @@ export const PretextEditor = forwardRef<
 >(function PretextEditor(
   {
     value,
-    onChange,
+    onChanged,
     language,
     fontSize = DEFAULT_FONT_SIZE,
     fontFamily = DEFAULT_FONT_FAMILY,
@@ -98,7 +98,7 @@ export const PretextEditor = forwardRef<
   useEffect(() => {
     const ctrl = new EditorController({
       value,
-      onChange,
+      onChanged,
       language,
       fontSize,
       fontFamily,
@@ -126,11 +126,11 @@ export const PretextEditor = forwardRef<
     ctrlRef.current?.setValue(value)
   }, [value])
 
-  // Sync onChange callback (avoid stale closure)
-  const onChangeRef = useRef(onChange)
-  onChangeRef.current = onChange
+  // Sync onChanged callback (avoid stale closure)
+  const onChangedRef = useRef(onChanged)
+  onChangedRef.current = onChanged
   useEffect(() => {
-    if (ctrlRef.current) ctrlRef.current.onChange = (v: string) => onChangeRef.current(v)
+    if (ctrlRef.current) ctrlRef.current.onChanged = (...args) => onChangedRef.current?.(...args)
   }, [])
 
   useImperativeHandle(ref, () => ctrlRef.current?.getHandle() ?? ({} as any), [])

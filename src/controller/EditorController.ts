@@ -70,10 +70,12 @@ export interface IEditorBinding {
   getSourceLine(): number
 }
 
+export type OnChangedCallback = (r1: number, c1: number, r2: number, c2: number, oldValue: string, newValue: string) => void
+
 /** Props shape shared across React, Vue, and Angular wrappers. */
 export interface PretextEditorProps {
   value: string
-  onChange: (value: string) => void
+  onChanged?: OnChangedCallback
   language?: string
   fontSize?: number
   fontFamily?: string
@@ -86,7 +88,7 @@ export interface PretextEditorProps {
 
 export interface EditorControllerOptions {
   value: string
-  onChange: (value: string) => void
+  onChanged?: OnChangedCallback
   language?: string
   fontSize?: number
   fontFamily?: string
@@ -171,7 +173,7 @@ export class EditorController {
   menuItems: ContextMenuItem[] = []
 
   // Options
-  onChange: (value: string) => void
+  onChanged: OnChangedCallback | undefined
   language: string | undefined
   fontSize: number
   fontFamily: string
@@ -225,7 +227,7 @@ export class EditorController {
 
   constructor(options: EditorControllerOptions) {
     this.doc = fromString(options.value)
-    this.onChange = options.onChange
+    this.onChanged = options.onChanged
     this.language = options.language
     this.fontSize = options.fontSize ?? DEFAULT_FONT_SIZE
     this.fontFamily = options.fontFamily ?? DEFAULT_FONT_FAMILY
@@ -319,6 +321,31 @@ export class EditorController {
 
     // Initial repaint
     requestAnimationFrame(() => this.repaint())
+  }
+
+  private notifyChanged(oldLines: string[]): void {
+    if (!this.onChanged) return
+    const newLines = this.doc.lines
+    const oldStr = oldLines.join('\n')
+    const newStr = newLines.join('\n')
+    let start = 0
+    const minLen = Math.min(oldStr.length, newStr.length)
+    while (start < minLen && oldStr[start] === newStr[start]) start++
+    let oldEnd = oldStr.length
+    let newEnd = newStr.length
+    while (oldEnd > start && newEnd > start && oldStr[oldEnd - 1] === newStr[newEnd - 1]) { oldEnd--; newEnd-- }
+    const [r1, c1] = this.posOf(oldLines, start)
+    const [r2, c2] = this.posOf(oldLines, oldEnd)
+    this.onChanged(r1, c1, r2, c2, oldStr.slice(start, oldEnd), newStr.slice(start, newEnd))
+  }
+
+  private posOf(lines: string[], offset: number): [number, number] {
+    let rem = offset
+    for (let i = 0; i < lines.length; i++) {
+      if (rem <= lines[i].length) return [i, rem]
+      rem -= lines[i].length + 1
+    }
+    return [lines.length - 1, lines[lines.length - 1]?.length ?? 0]
   }
 
   private applyThemeAttribute(): void {
@@ -528,6 +555,7 @@ export class EditorController {
       : oldText.replace(pattern, (matched) => applyPreserveCase(matched, replaceQuery))
     if (newText === oldText) return
 
+    const oldLines = this.doc.lines
     this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
     if (this.undoStack.length > 200) this.undoStack.shift()
     this.redoStack = []
@@ -535,7 +563,7 @@ export class EditorController {
     this.selAnchor = null
     this.extraCursors = []
     this.lastExternalValue = newText
-    this.onChange(newText)
+    this.notifyChanged(oldLines)
     this.scheduleSearch()
   }
 
@@ -690,12 +718,12 @@ export class EditorController {
   // ---- Internal: Commit update with undo ----
 
   private commitUpdate(newDoc: Doc, newAnchor: Cursor | null, newExtra: CursorSlot[] = []): void {
+    const oldLines = this.doc.lines
     this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
     if (this.undoStack.length > 200) this.undoStack.shift()
 
     let workerWillRepaint = false
     if (this.language && this.workerReady) {
-      const oldLines = this.doc.lines
       const newLines = newDoc.lines
       const fromLine = firstChangedLine(oldLines, newLines)
       const { removedCount, addedLines } = computeLineDelta(oldLines, newLines, fromLine)
@@ -739,7 +767,7 @@ export class EditorController {
     this.layoutDirty = true
     const str = toString(newDoc)
     this.lastExternalValue = str
-    this.onChange(str)
+    this.notifyChanged(oldLines)
     if (!workerWillRepaint) this.notifyAndRepaint()
   }
 
@@ -787,6 +815,7 @@ export class EditorController {
     const allLines = text.split('\n')
     const epoch = ++this.tokenEpoch
 
+    const oldLines = this.doc.lines
     this.selAnchor = null
     this.extraCursors = []
     this.tokenLines = undefined
@@ -808,7 +837,7 @@ export class EditorController {
 
     this.doc = { lines: allLines, cursor: { line: 0, col: 0 } }
     this.lastExternalValue = text
-    this.onChange(text)
+    this.notifyChanged(oldLines)
 
     if (this.language && this.workerReady) {
       this.tokenLines = new Array(allLines.length).fill([])
@@ -1411,13 +1440,14 @@ export class EditorController {
           if (shift) {
             const next = this.redoStack.pop()
             if (next) {
+              const oldLines = this.doc.lines
               this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
               this.doc = next.doc
               this.selAnchor = next.selAnchor
               this.extraCursors = next.extraCursors
               const str = toString(next.doc)
               this.lastExternalValue = str
-              this.onChange(str)
+              this.notifyChanged(oldLines)
               this.notifyAndRepaint()
               this.scrollCursorIntoView()
               if (this.searchState.isOpen) this.scheduleSearch()
@@ -1425,13 +1455,14 @@ export class EditorController {
           } else {
             const prev = this.undoStack.pop()
             if (prev) {
+              const oldLines = this.doc.lines
               this.redoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
               this.doc = prev.doc
               this.selAnchor = prev.selAnchor
               this.extraCursors = prev.extraCursors
               const str = toString(prev.doc)
               this.lastExternalValue = str
-              this.onChange(str)
+              this.notifyChanged(oldLines)
               this.notifyAndRepaint()
               this.scrollCursorIntoView()
               if (this.searchState.isOpen) this.scheduleSearch()
@@ -1443,13 +1474,14 @@ export class EditorController {
           e.preventDefault()
           const next = this.redoStack.pop()
           if (next) {
+            const oldLines = this.doc.lines
             this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
             this.doc = next.doc
             this.selAnchor = next.selAnchor
             this.extraCursors = next.extraCursors
             const str = toString(next.doc)
             this.lastExternalValue = str
-            this.onChange(str)
+            this.notifyChanged(oldLines)
             this.notifyAndRepaint()
             this.scrollCursorIntoView()
             if (this.searchState.isOpen) this.scheduleSearch()
