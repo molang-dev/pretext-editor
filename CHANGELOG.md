@@ -4,6 +4,13 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.2] — 2026-07-12
+
+### Fixed
+- **IME input no longer scrolls the editor to the top** — opening a CJK input method (Chinese, Japanese, Korean) no longer resets the scroll position to the beginning of the file.
+
+---
+
 ## [0.6.1] — 2026-07-12
 
 ### Fixed

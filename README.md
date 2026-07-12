@@ -62,6 +62,14 @@ const code = ref('console.log("hello")')
 
 > Import from `pretext-editor/vue`.
 
+> **Vite users:** `pretext-editor` uses a Web Worker internally. Add it to `optimizeDeps.exclude` so Vite does not pre-bundle it (pre-bundling changes `import.meta.url`, breaking Worker URL resolution):
+> ```ts
+> // vite.config.ts
+> export default defineConfig({
+>   optimizeDeps: { exclude: ['pretext-editor'] },
+> })
+> ```
+
 ### Angular
 
 Angular integrates directly with `EditorController`. Create the controller and mount it in `ngAfterViewInit`:

@@ -1318,11 +1318,22 @@ export class EditorController {
 
   onCompositionStart = (): void => {
     this.isComposing = true
+    // Move the hidden textarea to the cursor's document position so the browser's
+    // IME scroll-into-view targets the cursor location instead of resetting to top:0.
+    if (this.textarea) {
+      const vr = this.visualLayout
+        ? (this.visualLayout.logToFirstVisual[this.doc.cursor.line] ?? this.doc.cursor.line)
+        : this.doc.cursor.line
+      this.textarea.style.top = (PADDING_TOP + vr * this.lineHeight) + 'px'
+    }
   }
 
   onCompositionEnd = (e: CompositionEvent): void => {
     this.isComposing = false
-    if (this.textarea) this.textarea.value = ''
+    if (this.textarea) {
+      this.textarea.style.top = ''
+      this.textarea.value = ''
+    }
     if (e.data) {
       const text = e.data
       const applyToAll = (d: Doc, sel: Selection | null) => {
