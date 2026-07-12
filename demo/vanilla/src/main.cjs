@@ -96,13 +96,13 @@ function el(tag, attrs, children) {
   return e
 }
 
-function iconSpan(name) { return el('span', { class: 'pteic pteic-' + name }) }
+function iconSpan(name) { return el('span', { class: 'icon icon-' + name }) }
 
 function iconBtn(title, iconName, opts) {
   opts = opts || {}
-  var cls = 'pteic-btn'
-  if (opts.narrow) cls += ' pteic-btn--narrow'
-  if (opts.active) cls += ' pteic-btn--active'
+  var cls = 'button'
+  if (opts.narrow) cls += ' button--narrow'
+  if (opts.active) cls += ' button--active'
   return el('button', { class: cls, title: title, disabled: !!opts.disabled, onClick: opts.onClick }, [iconSpan(iconName)])
 }
 
@@ -176,65 +176,65 @@ toolbar.appendChild(wrapBtn)
 
 document.body.appendChild(toolbar)
 
-// Editor wrapper
-var editorWrap = el('div', { style: { flex: '1', position: 'relative', overflow: 'hidden' } })
+// Editor wrapper (also serves as .pretext-editor root for CSS scoping)
+var editorWrap = el('div', { class: 'pretext-editor', style: { flex: '1', position: 'relative', overflow: 'hidden' } })
 
 // Editor container
 var container = el('div', {
-  class: 'pteic-editor-scroll',
+  class: 'editor-scroll',
   onClick: function() { textarea.focus({ preventScroll: true }) },
 })
 
-var spacer = el('div', { class: 'pteic-editor-content' })
-var canvas = el('canvas', { class: 'pteic-editor-canvas' })
+var spacer = el('div', { class: 'editor-content' })
+var canvas = el('canvas', { class: 'editor-canvas' })
 spacer.appendChild(canvas)
 container.appendChild(spacer)
 
 var textarea = el('textarea', {
-  class: 'pteic-editor-textarea',
+  class: 'editor-textarea',
   rows: '1',
   autocomplete: 'off', autocorrect: 'off', autocapitalize: 'off', spellcheck: 'false',
 })
 container.appendChild(textarea)
 editorWrap.appendChild(container)
 
-// Context menu
-var ctxMenu = el('div', { class: 'pteic-cm', style: { display: 'none' } })
-document.body.appendChild(ctxMenu)
+// Context menu (position:fixed, appended inside editorWrap so .pretext-editor .contextmenu selector matches)
+var ctxMenu = el('div', { class: 'contextmenu', style: { display: 'none' } })
+editorWrap.appendChild(ctxMenu)
 
 // Search bar
-var searchBar = el('div', { class: 'pteic-sb', style: { display: 'none' } })
-var findRow = el('div', { class: 'pteic-sb-row' })
-var chevBtn = iconBtn('', 'chevron-down', { narrow: true, onClick: function() { ctrl.toggleReplace() } })
-var findInputWrap = el('div', { class: 'pteic-sb-input-wrap' })
-var findInput = el('input', { class: 'pteic-sb-input pteic-sb-find-input', placeholder: 'Find' })
-var togglesDiv = el('div', { class: 'pteic-sb-toggles' })
-var caseBtn = iconBtn('Match Case (Alt+C)', 'case-sensitive', { onClick: function() { ctrl.setSearchCaseSensitive(!searchState.caseSensitive) } })
-var wordBtn = iconBtn('Match Whole Word (Alt+W)', 'whole-word', { onClick: function() { ctrl.setSearchWholeWord(!searchState.wholeWord) } })
+var searchBar = el('div', { class: 'searchbar', style: { display: 'none' } })
+var findRow = el('div', { class: 'searchbar-row' })
+var chevBtn = iconBtn('', 'chevrondown', { narrow: true, onClick: function() { ctrl.toggleReplace() } })
+var findInputWrap = el('div', { class: 'searchbar-inputwrap' })
+var findInput = el('input', { class: 'searchbar-input searchbar-findinput', placeholder: 'Find' })
+var togglesDiv = el('div', { class: 'searchbar-toggles' })
+var caseBtn = iconBtn('Match Case (Alt+C)', 'casesensitive', { onClick: function() { ctrl.setSearchCaseSensitive(!searchState.caseSensitive) } })
+var wordBtn = iconBtn('Match Whole Word (Alt+W)', 'wholeword', { onClick: function() { ctrl.setSearchWholeWord(!searchState.wholeWord) } })
 var regexBtn = iconBtn('Use Regular Expression (Alt+R)', 'regex', { onClick: function() { ctrl.setSearchUseRegex(!searchState.useRegex) } })
 togglesDiv.appendChild(caseBtn); togglesDiv.appendChild(wordBtn); togglesDiv.appendChild(regexBtn)
 findInputWrap.appendChild(findInput); findInputWrap.appendChild(togglesDiv)
-var countSpan = el('span', { class: 'pteic-sb-count' })
-var navDiv = el('div', { class: 'pteic-sb-btns' })
-var prevBtn = iconBtn('Previous Match (Shift+Enter)', 'arrow-up', { disabled: true, onClick: function() { ctrl.searchPrev() } })
-var nextBtn = iconBtn('Next Match (Enter)', 'arrow-down', { disabled: true, onClick: function() { ctrl.searchNext() } })
+var countSpan = el('span', { class: 'searchbar-count' })
+var navDiv = el('div', { class: 'searchbar-buttons' })
+var prevBtn = iconBtn('Previous Match (Shift+Enter)', 'arrowup', { disabled: true, onClick: function() { ctrl.searchPrev() } })
+var nextBtn = iconBtn('Next Match (Enter)', 'arrowdown', { disabled: true, onClick: function() { ctrl.searchNext() } })
 var closeBtn = iconBtn('Close (Escape)', 'close', { onClick: function() { ctrl.closeSearch() } })
 navDiv.appendChild(prevBtn); navDiv.appendChild(nextBtn); navDiv.appendChild(closeBtn)
 findRow.appendChild(chevBtn); findRow.appendChild(findInputWrap); findRow.appendChild(countSpan); findRow.appendChild(navDiv)
 
-var replaceRow = el('div', { class: 'pteic-sb-row', style: { display: 'none' } })
-var replaceInputWrap = el('div', { class: 'pteic-sb-input-wrap' })
-var replaceInput = el('input', { class: 'pteic-sb-input pteic-sb-replace-input', placeholder: 'Replace' })
-var replaceOverlay = el('div', { class: 'pteic-sb-overlay' })
-var preserveBtn = iconBtn('Preserve Case (AB)', 'preserve-case', { onClick: function() { ctrl.setPreserveCase(!searchState.preserveCase) } })
+var replaceRow = el('div', { class: 'searchbar-row', style: { display: 'none' } })
+var replaceInputWrap = el('div', { class: 'searchbar-inputwrap' })
+var replaceInput = el('input', { class: 'searchbar-input searchbar-replaceinput', placeholder: 'Replace' })
+var replaceOverlay = el('div', { class: 'searchbar-overlay' })
+var preserveBtn = iconBtn('Preserve Case (AB)', 'preservecase', { onClick: function() { ctrl.setPreserveCase(!searchState.preserveCase) } })
 replaceOverlay.appendChild(preserveBtn); replaceInputWrap.appendChild(replaceInput); replaceInputWrap.appendChild(replaceOverlay)
-var replaceNav = el('div', { class: 'pteic-sb-btns' })
+var replaceNav = el('div', { class: 'searchbar-buttons' })
 var replaceBtn = iconBtn('Replace (Enter)', 'replace', { disabled: true, onClick: function() { ctrl.replace() } })
-var replaceAllBtn = iconBtn('Replace All (Ctrl+Alt+Enter)', 'replace-all', { disabled: true, onClick: function() { ctrl.replaceAll() } })
+var replaceAllBtn = iconBtn('Replace All (Ctrl+Alt+Enter)', 'replaceall', { disabled: true, onClick: function() { ctrl.replaceAll() } })
 replaceNav.appendChild(replaceBtn); replaceNav.appendChild(replaceAllBtn)
-replaceRow.appendChild(el('div', { class: 'pteic-sb-spacer' })); replaceRow.appendChild(replaceInputWrap); replaceRow.appendChild(replaceNav)
+replaceRow.appendChild(el('div', { class: 'searchbar-spacer' })); replaceRow.appendChild(replaceInputWrap); replaceRow.appendChild(replaceNav)
 
-var errorDiv = el('div', { class: 'pteic-sb-error', style: { display: 'none' } })
+var errorDiv = el('div', { class: 'searchbar-error', style: { display: 'none' } })
 searchBar.appendChild(findRow); searchBar.appendChild(replaceRow); searchBar.appendChild(errorDiv)
 editorWrap.appendChild(searchBar)
 document.body.appendChild(editorWrap)
@@ -280,10 +280,10 @@ function updateStatus(s) {
     ctxMenu.innerHTML = ''
     s.menuItems.forEach(function(item) {
       if (item.separator) {
-        ctxMenu.appendChild(el('div', { class: 'pteic-cm-separator' }))
+        ctxMenu.appendChild(el('div', { class: 'contextmenu-separator' }))
       } else {
         ctxMenu.appendChild(el('div', {
-          class: 'pteic-cm-item' + (item.disabled ? ' pteic-cm-item--disabled' : ''),
+          class: 'contextmenu-item' + (item.disabled ? ' contextmenu-item--disabled' : ''),
           onClick: function() { if (!item.disabled) { item.onClick(); ctrl.closeMenu() } },
         }, item.label))
       }
@@ -300,28 +300,28 @@ function updateStatus(s) {
   searchBar.style.display = ss.isOpen ? 'flex' : 'none'
   if (ss.isOpen && (wasClosed || focusTokenChanged)) { findInput.focus(); findInput.select() }
   if (findInput.value !== ss.query) findInput.value = ss.query
-  findInput.className = 'pteic-sb-input pteic-sb-find-input' +
-    (!!ss.query && !ss.regexError && ss.matchCount === 0 ? ' pteic-sb-input--no-matches' : '') +
-    (ss.regexError ? ' pteic-sb-input--error' : '')
+  findInput.className = 'searchbar-input searchbar-findinput' +
+    (!!ss.query && !ss.regexError && ss.matchCount === 0 ? ' searchbar-input--nomatches' : '') +
+    (ss.regexError ? ' searchbar-input--error' : '')
   findInput.title = ss.regexError || ''
-  caseBtn.className = 'pteic-btn' + (ss.caseSensitive ? ' pteic-btn--active' : '')
-  wordBtn.className = 'pteic-btn' + (ss.wholeWord ? ' pteic-btn--active' : '')
-  regexBtn.className = 'pteic-btn' + (ss.useRegex ? ' pteic-btn--active' : '')
+  caseBtn.className = 'button' + (ss.caseSensitive ? ' button--active' : '')
+  wordBtn.className = 'button' + (ss.wholeWord ? ' button--active' : '')
+  regexBtn.className = 'button' + (ss.useRegex ? ' button--active' : '')
   var hasErr = !!ss.regexError
   var noMatch = !!ss.query && !hasErr && ss.matchCount === 0
   countSpan.textContent = hasErr ? '' : ss.matchCount === 0 ? (ss.query ? 'No results' : '') : (ss.currentIndex + 1) + ' of ' + (ss.matchCount > 999 ? '999+' : ss.matchCount)
-  countSpan.className = 'pteic-sb-count' + (hasErr || noMatch ? ' pteic-sb-count--error' : '')
+  countSpan.className = 'searchbar-count' + (hasErr || noMatch ? ' searchbar-count--error' : '')
   prevBtn.disabled = ss.matchCount === 0
   nextBtn.disabled = ss.matchCount === 0
   var showR = ss.showReplace
   replaceRow.style.display = showR ? 'flex' : 'none'
-  var chevSpan = chevBtn.querySelector('.pteic')
-  if (chevSpan) chevSpan.className = 'pteic pteic-chevron-down' + (showR ? '' : ' pteic-chevron-down--collapsed')
+  var chevSpan = chevBtn.querySelector('.icon')
+  if (chevSpan) chevSpan.className = 'icon icon-chevrondown' + (showR ? '' : ' icon-chevrondown--collapsed')
   chevBtn.title = showR ? 'Collapse Replace' : 'Expand Replace'
   if (showR) {
     if (replaceInput.value !== ss.replaceQuery) replaceInput.value = ss.replaceQuery
-    replaceInput.className = 'pteic-sb-input pteic-sb-replace-input' + (noMatch ? ' pteic-sb-input--no-matches' : '')
-    preserveBtn.className = 'pteic-btn' + (ss.preserveCase ? ' pteic-btn--active' : '')
+    replaceInput.className = 'searchbar-input searchbar-replaceinput' + (noMatch ? ' searchbar-input--nomatches' : '')
+    preserveBtn.className = 'button' + (ss.preserveCase ? ' button--active' : '')
     preserveBtn.disabled = ss.useRegex
     replaceBtn.disabled = ss.matchCount === 0 || !!ss.regexError
     replaceAllBtn.disabled = ss.matchCount === 0 || !!ss.regexError

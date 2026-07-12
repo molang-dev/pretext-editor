@@ -29,10 +29,10 @@ export function ContextMenu({ x, y, items, onClose }: Props) {
   }, [onClose])
 
   return (
-    <div ref={ref} className="pteic-cm" style={{ left: x, top: y }}>
+    <div ref={ref} className="contextmenu" style={{ left: x, top: y }}>
       {items.map((item, i) =>
         item.separator ? (
-          <div key={i} className="pteic-cm-separator" />
+          <div key={i} className="contextmenu-separator" />
         ) : (
           <MenuRow key={i} item={item} onClose={onClose} />
         )
@@ -50,7 +50,7 @@ function MenuRow({ item, onClose }: { item: ContextMenuItem; onClose: () => void
           onClose()
         }
       }}
-      className={`pteic-cm-item${item.disabled ? ' pteic-cm-item--disabled' : ''}`}
+      className={`contextmenu-item${item.disabled ? ' contextmenu-item--disabled' : ''}`}
     >
       {item.label}
     </div>

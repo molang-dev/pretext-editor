@@ -31,3 +31,18 @@
 - New method on `EditorController` for loading a file from disk
 - Progressively renders content in [200, 400, 800, 1600] line batches before tokenizing the full file
 - File extension is used to auto-detect language
+
+## Light Theme Support for Search Bar and Context Menu
+
+- `EditorController` sets `data-theme="light"` or `data-theme="dark"` on the `.pretext-editor` root element at mount time and whenever the theme changes
+- Theme type is detected from the theme name (names containing "light" are treated as light)
+- Search bar and context menu apply light-theme color overrides via `[data-theme="light"]` CSS attribute selectors, covering backgrounds, borders, text colors, button states, and error colors
+- All framework targets (React, Vue, Angular, Svelte) pick up the overrides automatically; Svelte's scoped `:global()` rules are also updated
+
+## CSS Class Naming Refactor
+
+- Removed all flat `pteic-` prefixed CSS class names
+- All styles are now scoped under `.pretext-editor` as the root selector, using descendant selectors (e.g. `.pretext-editor .searchbar`, `.pretext-editor .contextmenu-item`)
+- Icon component classes use `icon icon-<name>` (e.g. `icon icon-arrowdown`, `icon icon-chevrondown`)
+- Toggle button states use `button--active`; collapsed chevron uses `icon-chevrondown--collapsed`
+- All framework wrappers (React, Vue, Angular, Svelte) and demos (vanilla, Angular) updated to the new class names

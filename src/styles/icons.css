@@ -1,4 +1,4 @@
-.pteic {
+.pretext-editor .icon {
   display: inline-block;
   flex: 0 0 auto;
   width: 16px;
@@ -16,62 +16,67 @@
   mask-size: contain;
 }
 
-.pteic.pteic-arrow-down {
+.pretext-editor .icon.icon-arrowdown {
   -webkit-mask-image: url('../icons/arrow-down.svg');
   mask-image: url('../icons/arrow-down.svg');
 }
 
-.pteic.pteic-arrow-up {
+.pretext-editor .icon.icon-arrowup {
   -webkit-mask-image: url('../icons/arrow-up.svg');
   mask-image: url('../icons/arrow-up.svg');
 }
 
-.pteic.pteic-case-sensitive {
+.pretext-editor .icon.icon-casesensitive {
   -webkit-mask-image: url('../icons/case-sensitive.svg');
   mask-image: url('../icons/case-sensitive.svg');
 }
 
-.pteic.pteic-chevron-down {
+.pretext-editor .icon.icon-chevrondown {
   -webkit-mask-image: url('../icons/chevron-down.svg');
   mask-image: url('../icons/chevron-down.svg');
+  transition: transform 0.12s;
 }
 
-.pteic.pteic-close {
+.pretext-editor .icon.icon-chevrondown.icon-chevrondown--collapsed {
+  transform: rotate(-90deg);
+}
+
+.pretext-editor .icon.icon-close {
   -webkit-mask-image: url('../icons/close.svg');
   mask-image: url('../icons/close.svg');
 }
 
-.pteic.pteic-preserve-case {
+.pretext-editor .icon.icon-preservecase {
   -webkit-mask-image: url('../icons/preserve-case.svg');
   mask-image: url('../icons/preserve-case.svg');
 }
 
-.pteic.pteic-regex {
+.pretext-editor .icon.icon-regex {
   -webkit-mask-image: url('../icons/regex.svg');
   mask-image: url('../icons/regex.svg');
 }
 
-.pteic.pteic-replace-all {
+.pretext-editor .icon.icon-replaceall {
   -webkit-mask-image: url('../icons/replace-all.svg');
   mask-image: url('../icons/replace-all.svg');
 }
 
-.pteic.pteic-replace {
+.pretext-editor .icon.icon-replace {
   -webkit-mask-image: url('../icons/replace.svg');
   mask-image: url('../icons/replace.svg');
 }
 
-.pteic.pteic-text-size {
+.pretext-editor .icon.icon-textsize {
   -webkit-mask-image: url('../icons/text-size.svg');
   mask-image: url('../icons/text-size.svg');
 }
 
-.pteic.pteic-whole-word {
+.pretext-editor .icon.icon-wholeword {
   -webkit-mask-image: url('../icons/whole-word.svg');
   mask-image: url('../icons/whole-word.svg');
 }
 
-.pteic.pteic-word-wrap {
+.pretext-editor .icon.icon-wordwrap {
   -webkit-mask-image: url('../icons/word-wrap.svg');
   mask-image: url('../icons/word-wrap.svg');
 }

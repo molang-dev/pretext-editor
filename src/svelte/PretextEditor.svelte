@@ -231,36 +231,36 @@
   }
 </script>
 
-<div class="pteic-editor-root">
+<div class="pretext-editor">
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div
     bind:this={containerEl}
-    class="pteic-editor-scroll"
+    class="editor-scroll"
     role="textbox"
     tabindex="-1"
     on:click={onContainerClick}
     on:keydown={onContainerKeyDown}
   >
-    <div class="pteic-editor-content" bind:this={contentEl}>
+    <div class="editor-content" bind:this={contentEl}>
       <canvas
         bind:this={canvasEl}
-        class="pteic-editor-canvas"
+        class="editor-canvas"
       />
     </div>
 
     {#if menuPos}
       <div
         bind:this={ctxMenuEl}
-        class="pteic-cm"
+        class="contextmenu"
         style="left:{menuPos.x}px; top:{menuPos.y}px"
       >
         {#each resolvedMenuItems as item}
           {#if item.separator}
-            <div class="pteic-cm-separator" />
+            <div class="contextmenu-separator" />
           {:else}
             <button
-              class="pteic-cm-item"
-              class:pteic-cm-item--disabled={item.disabled}
+              class="contextmenu-item"
+              class:contextmenu-item--disabled={item.disabled}
               disabled={item.disabled}
               on:click={() => onMenuItemClick(item)}
             >
@@ -274,7 +274,7 @@
     <textarea
       bind:this={textareaEl}
       rows="1"
-      class="pteic-editor-textarea"
+      class="editor-textarea"
       autocomplete="off"
       autocorrect="off"
       autocapitalize="off"
@@ -287,18 +287,18 @@
 
   <!-- Search bar -->
   {#if searchState.isOpen}
-    <div class="pteic-sb">
+    <div class="searchbar">
       <!-- Find row -->
-      <div class="pteic-sb-row">
+      <div class="searchbar-row">
         <button
-          class="pteic-btn pteic-btn--narrow"
+          class="button button--narrow"
           title={searchState.showReplace ? 'Collapse Replace' : 'Expand Replace'}
           on:click={searchActions.toggleReplace}
         >
-          <span class="pteic pteic-chevron-down" class:pteic-chevron-down--collapsed={!searchState.showReplace} />
+          <span class="icon icon-chevrondown" class:icon-chevrondown--collapsed={!searchState.showReplace} />
         </button>
 
-        <div class="pteic-sb-input-wrap">
+        <div class="searchbar-inputwrap">
           <input
             bind:this={findInputEl}
             value={searchState.query}
@@ -306,113 +306,113 @@
             on:keydown={handleFindKeyDown}
             placeholder="Find"
             title={searchState.regexError ?? undefined}
-            class="pteic-sb-input pteic-sb-find-input"
-            class:pteic-sb-input--no-matches={noMatches}
-            class:pteic-sb-input--error={hasError}
+            class="searchbar-input searchbar-findinput"
+            class:searchbar-input--nomatches={noMatches}
+            class:searchbar-input--error={hasError}
           />
-          <div class="pteic-sb-toggles">
+          <div class="searchbar-toggles">
             <button
-              class="pteic-btn"
-              class:pteic-btn--active={searchState.caseSensitive}
+              class="button"
+              class:button--active={searchState.caseSensitive}
               title="Match Case (Alt+C)"
               on:click={() => searchActions.setCaseSensitive(!searchState.caseSensitive)}
             >
-              <span class="pteic pteic-case-sensitive" />
+              <span class="icon icon-casesensitive" />
             </button>
             <button
-              class="pteic-btn"
-              class:pteic-btn--active={searchState.wholeWord}
+              class="button"
+              class:button--active={searchState.wholeWord}
               title="Match Whole Word (Alt+W)"
               on:click={() => searchActions.setWholeWord(!searchState.wholeWord)}
             >
-              <span class="pteic pteic-whole-word" />
+              <span class="icon icon-wholeword" />
             </button>
             <button
-              class="pteic-btn"
-              class:pteic-btn--active={searchState.useRegex}
+              class="button"
+              class:button--active={searchState.useRegex}
               title="Use Regular Expression (Alt+R)"
               on:click={() => searchActions.setUseRegex(!searchState.useRegex)}
             >
-              <span class="pteic pteic-regex" />
+              <span class="icon icon-regex" />
             </button>
           </div>
         </div>
 
-        <span class="pteic-sb-count" class:pteic-sb-count--error={hasError || noMatches}>
+        <span class="searchbar-count" class:searchbar-count--error={hasError || noMatches}>
           {countText}
         </span>
 
-        <div class="pteic-sb-btns">
+        <div class="searchbar-buttons">
           <button
-            class="pteic-btn"
+            class="button"
             title="Previous Match (Shift+Enter)"
             disabled={searchState.matchCount === 0}
             on:click={searchActions.prev}
           >
-            <span class="pteic pteic-arrow-up" />
+            <span class="icon icon-arrowup" />
           </button>
           <button
-            class="pteic-btn"
+            class="button"
             title="Next Match (Enter)"
             disabled={searchState.matchCount === 0}
             on:click={searchActions.next}
           >
-            <span class="pteic pteic-arrow-down" />
+            <span class="icon icon-arrowdown" />
           </button>
           <button
-            class="pteic-btn"
+            class="button"
             title="Close (Escape)"
             on:click={searchActions.close}
           >
-            <span class="pteic pteic-close" />
+            <span class="icon icon-close" />
           </button>
         </div>
       </div>
 
       <!-- Replace row -->
       {#if searchState.showReplace}
-        <div class="pteic-sb-row">
-          <div class="pteic-sb-spacer" />
+        <div class="searchbar-row">
+          <div class="searchbar-spacer" />
 
-          <div class="pteic-sb-input-wrap">
+          <div class="searchbar-inputwrap">
             <input
               bind:this={replaceInputEl}
               value={searchState.replaceQuery}
               on:input={(e) => searchActions.setReplaceQuery(getInputValue(e))}
               on:keydown={handleReplaceKeyDown}
               placeholder="Replace"
-              class="pteic-sb-input pteic-sb-replace-input"
-              class:pteic-sb-input--no-matches={noMatches}
+              class="searchbar-input searchbar-replaceinput"
+              class:searchbar-input--nomatches={noMatches}
             />
-            <div class="pteic-sb-overlay">
+            <div class="searchbar-overlay">
               <button
-                class="pteic-btn"
-                class:pteic-btn--active={searchState.preserveCase}
+                class="button"
+                class:button--active={searchState.preserveCase}
                 title="Preserve Case (AB)"
                 disabled={searchState.useRegex}
                 on:click={() => searchActions.setPreserveCase(!searchState.preserveCase)}
               >
-                <span class="pteic pteic-preserve-case" />
+                <span class="icon icon-preservecase" />
               </button>
             </div>
           </div>
 
-          <div class="pteic-sb-btns">
+          <div class="searchbar-buttons">
             <button
-              class="pteic-btn"
+              class="button"
               title="Replace (Enter)"
               disabled={searchState.matchCount === 0 || !!searchState.regexError}
               on:click={searchActions.replace}
             >
-              <span class="pteic pteic-replace" />
+              <span class="icon icon-replace" />
             </button>
             <button
-              class="pteic-btn"
+              class="button"
               title="Replace All (Ctrl+Alt+Enter)"
               disabled={searchState.matchCount === 0 || !!searchState.regexError}
               on:click={searchActions.replaceAll}
             >
-              <span class="pteic pteic-replace-all" />
+              <span class="icon icon-replaceall" />
             </button>
           </div>
         </div>
@@ -420,7 +420,7 @@
 
       <!-- Regex error -->
       {#if searchState.regexError}
-        <div class="pteic-sb-error">{searchState.regexError}</div>
+        <div class="searchbar-error">{searchState.regexError}</div>
       {/if}
     </div>
   {/if}
@@ -428,7 +428,7 @@
 
 <style>
   /* ── Icons (global) ── */
-  :global(.pteic) {
+  :global(.pretext-editor .icon) {
     display: inline-block;
     flex: 0 0 auto;
     width: 16px;
@@ -445,79 +445,83 @@
     mask-repeat: no-repeat;
     mask-size: contain;
   }
-  :global(.pteic.pteic-arrow-down) {
+  :global(.pretext-editor .icon.icon-arrowdown) {
     -webkit-mask-image: url('../icons/arrow-down.svg');
     mask-image: url('../icons/arrow-down.svg');
   }
-  :global(.pteic.pteic-arrow-up) {
+  :global(.pretext-editor .icon.icon-arrowup) {
     -webkit-mask-image: url('../icons/arrow-up.svg');
     mask-image: url('../icons/arrow-up.svg');
   }
-  :global(.pteic.pteic-case-sensitive) {
+  :global(.pretext-editor .icon.icon-casesensitive) {
     -webkit-mask-image: url('../icons/case-sensitive.svg');
     mask-image: url('../icons/case-sensitive.svg');
   }
-  :global(.pteic.pteic-chevron-down) {
+  :global(.pretext-editor .icon.icon-chevrondown) {
     -webkit-mask-image: url('../icons/chevron-down.svg');
     mask-image: url('../icons/chevron-down.svg');
+    transition: transform 0.12s;
   }
-  :global(.pteic.pteic-close) {
+  :global(.pretext-editor .icon.icon-chevrondown.icon-chevrondown--collapsed) {
+    transform: rotate(-90deg);
+  }
+  :global(.pretext-editor .icon.icon-close) {
     -webkit-mask-image: url('../icons/close.svg');
     mask-image: url('../icons/close.svg');
   }
-  :global(.pteic.pteic-preserve-case) {
+  :global(.pretext-editor .icon.icon-preservecase) {
     -webkit-mask-image: url('../icons/preserve-case.svg');
     mask-image: url('../icons/preserve-case.svg');
   }
-  :global(.pteic.pteic-regex) {
+  :global(.pretext-editor .icon.icon-regex) {
     -webkit-mask-image: url('../icons/regex.svg');
     mask-image: url('../icons/regex.svg');
   }
-  :global(.pteic.pteic-replace-all) {
+  :global(.pretext-editor .icon.icon-replaceall) {
     -webkit-mask-image: url('../icons/replace-all.svg');
     mask-image: url('../icons/replace-all.svg');
   }
-  :global(.pteic.pteic-replace) {
+  :global(.pretext-editor .icon.icon-replace) {
     -webkit-mask-image: url('../icons/replace.svg');
     mask-image: url('../icons/replace.svg');
   }
-  :global(.pteic.pteic-text-size) {
+  :global(.pretext-editor .icon.icon-textsize) {
     -webkit-mask-image: url('../icons/text-size.svg');
     mask-image: url('../icons/text-size.svg');
   }
-  :global(.pteic.pteic-whole-word) {
+  :global(.pretext-editor .icon.icon-wholeword) {
     -webkit-mask-image: url('../icons/whole-word.svg');
     mask-image: url('../icons/whole-word.svg');
   }
-  :global(.pteic.pteic-word-wrap) {
+  :global(.pretext-editor .icon.icon-wordwrap) {
     -webkit-mask-image: url('../icons/word-wrap.svg');
     mask-image: url('../icons/word-wrap.svg');
   }
 
   /* ── Editor shell (global) ── */
-  :global(.pteic-editor-root) {
+  :global(.pretext-editor) {
     position: relative;
     height: 100%;
     width: 100%;
     overflow: hidden;
   }
-  :global(.pteic-editor-scroll) {
+  :global(.pretext-editor .editor-scroll) {
     position: absolute;
     inset: 0;
     overflow: auto;
     outline: none;
     cursor: text;
   }
-  :global(.pteic-editor-content) {
+  :global(.pretext-editor .editor-content) {
     position: relative;
   }
-  :global(.pteic-editor-canvas) {
+  :global(.pretext-editor .editor-canvas) {
     position: sticky;
     top: 0;
     display: block;
     width: 100%;
   }
-  :global(.pteic-editor-textarea) {
+  :global(.pretext-editor .editor-textarea) {
     position: absolute;
     top: 0;
     left: 0;
@@ -533,7 +537,7 @@
   }
 
   /* ── Context menu (global) ── */
-  :global(.pteic-cm) {
+  :global(.pretext-editor .contextmenu) {
     position: fixed;
     background: #252526;
     border: 1px solid #454545;
@@ -544,12 +548,12 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     user-select: none;
   }
-  :global(.pteic-cm-separator) {
+  :global(.pretext-editor .contextmenu-separator) {
     height: 1px;
     background: #454545;
     margin: 4px 0;
   }
-  :global(.pteic-cm-item) {
+  :global(.pretext-editor .contextmenu-item) {
     display: block;
     width: 100%;
     text-align: left;
@@ -560,19 +564,19 @@
     background: transparent;
     border: none;
   }
-  :global(.pteic-cm-item:hover) {
+  :global(.pretext-editor .contextmenu-item:hover) {
     background: #094771;
   }
-  :global(.pteic-cm-item--disabled) {
+  :global(.pretext-editor .contextmenu-item--disabled) {
     color: #5a5a5a;
     cursor: default;
   }
-  :global(.pteic-cm-item--disabled:hover) {
+  :global(.pretext-editor .contextmenu-item--disabled:hover) {
     background: transparent;
   }
 
   /* ── Search bar (global) ── */
-  :global(.pteic-sb) {
+  :global(.pretext-editor .searchbar) {
     position: absolute;
     top: 10px;
     right: 18px;
@@ -588,16 +592,16 @@
     font-family: system-ui, -apple-system, sans-serif;
     user-select: none;
   }
-  :global(.pteic-sb-row) {
+  :global(.pretext-editor .searchbar-row) {
     display: flex;
     align-items: center;
     gap: 5px;
   }
-  :global(.pteic-sb-input-wrap) {
+  :global(.pretext-editor .searchbar-inputwrap) {
     position: relative;
     flex-shrink: 0;
   }
-  :global(.pteic-sb-input) {
+  :global(.pretext-editor .searchbar-input) {
     width: 240px;
     background: #3c3c3c;
     border: 1px solid #555;
@@ -610,19 +614,19 @@
     box-sizing: border-box;
     height: 30px;
   }
-  :global(.pteic-sb-find-input) {
+  :global(.pretext-editor .searchbar-findinput) {
     padding-right: 86px;
   }
-  :global(.pteic-sb-replace-input) {
+  :global(.pretext-editor .searchbar-replaceinput) {
     padding-right: 30px;
   }
-  :global(.pteic-sb-input--no-matches) {
+  :global(.pretext-editor .searchbar-input--nomatches) {
     background: rgba(228, 86, 73, 0.18);
   }
-  :global(.pteic-sb-input--error) {
+  :global(.pretext-editor .searchbar-input--error) {
     border-color: #f48771;
   }
-  :global(.pteic-sb-toggles) {
+  :global(.pretext-editor .searchbar-toggles) {
     position: absolute;
     right: 3px;
     top: 50%;
@@ -631,13 +635,13 @@
     gap: 2px;
     align-items: center;
   }
-  :global(.pteic-sb-overlay) {
+  :global(.pretext-editor .searchbar-overlay) {
     position: absolute;
     right: 3px;
     top: 50%;
     transform: translateY(-50%);
   }
-  :global(.pteic-sb-count) {
+  :global(.pretext-editor .searchbar-count) {
     font-size: 13px;
     color: #d4d4d4;
     min-width: 74px;
@@ -645,18 +649,18 @@
     flex-shrink: 0;
     white-space: nowrap;
   }
-  :global(.pteic-sb-count--error) {
+  :global(.pretext-editor .searchbar-count--error) {
     color: #f48771;
   }
-  :global(.pteic-sb-btns) {
+  :global(.pretext-editor .searchbar-buttons) {
     display: flex;
     gap: 2px;
   }
-  :global(.pteic-sb-spacer) {
+  :global(.pretext-editor .searchbar-spacer) {
     width: 15px;
     flex-shrink: 0;
   }
-  :global(.pteic-sb-error) {
+  :global(.pretext-editor .searchbar-error) {
     font-size: 12px;
     color: #f48771;
     padding-left: 20px;
@@ -665,7 +669,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  :global(.pteic-btn) {
+  :global(.pretext-editor .button) {
     width: 26px;
     height: 26px;
     display: flex;
@@ -680,23 +684,76 @@
     flex-shrink: 0;
     outline: none;
   }
-  :global(.pteic-btn:hover:not(:disabled)) {
+  :global(.pretext-editor .button:hover:not(:disabled)) {
     background: #37373d;
   }
-  :global(.pteic-btn.pteic-btn--active) {
+  :global(.pretext-editor .button.button--active) {
     background: #0e639c;
   }
-  :global(.pteic-btn:disabled) {
+  :global(.pretext-editor .button:disabled) {
     color: #555;
     cursor: default;
   }
-  :global(.pteic-btn--narrow) {
+  :global(.pretext-editor .button--narrow) {
     width: 15px;
   }
-  :global(.pteic.pteic-chevron-down) {
-    transition: transform 0.12s;
+
+  /* Light theme overrides */
+  :global(.pretext-editor[data-theme="light"] .contextmenu) {
+    background: #f3f3f3;
+    border-color: #d4d4d4;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   }
-  :global(.pteic.pteic-chevron-down.pteic-chevron-down--collapsed) {
-    transform: rotate(-90deg);
+  :global(.pretext-editor[data-theme="light"] .contextmenu-separator) {
+    background: #d4d4d4;
+  }
+  :global(.pretext-editor[data-theme="light"] .contextmenu-item) {
+    color: #1f1f1f;
+  }
+  :global(.pretext-editor[data-theme="light"] .contextmenu-item:hover) {
+    background: #0060c0;
+    color: #ffffff;
+  }
+  :global(.pretext-editor[data-theme="light"] .contextmenu-item--disabled) {
+    color: #a0a0a0;
+  }
+  :global(.pretext-editor[data-theme="light"] .searchbar) {
+    background: #f3f3f3;
+    border-color: #c8c8c8;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  }
+  :global(.pretext-editor[data-theme="light"] .searchbar-input) {
+    background: #ffffff;
+    border-color: #c8c8c8;
+    color: #1f1f1f;
+  }
+  :global(.pretext-editor[data-theme="light"] .searchbar-input:focus) {
+    border-color: #0078d4;
+  }
+  :global(.pretext-editor[data-theme="light"] .searchbar-count) {
+    color: #717171;
+  }
+  :global(.pretext-editor[data-theme="light"] .searchbar-count--error) {
+    color: #a1260d;
+  }
+  :global(.pretext-editor[data-theme="light"] .searchbar-error) {
+    color: #a1260d;
+  }
+  :global(.pretext-editor[data-theme="light"] .button) {
+    color: #616161;
+  }
+  :global(.pretext-editor[data-theme="light"] .button:hover:not(:disabled)) {
+    background: rgba(0, 0, 0, 0.07);
+  }
+  :global(.pretext-editor[data-theme="light"] .button.button--active) {
+    background: rgba(18, 136, 214, 0.25);
+    border-color: #1177bb;
+    color: #1f1f1f;
+  }
+  :global(.pretext-editor[data-theme="light"] .button.button--active:hover:not(:disabled)) {
+    background: rgba(18, 136, 214, 0.4);
+  }
+  :global(.pretext-editor[data-theme="light"] .button:disabled) {
+    color: #a0a0a0;
   }
 </style>

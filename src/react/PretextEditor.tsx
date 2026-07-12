@@ -163,18 +163,18 @@ export const PretextEditor = forwardRef<
 
   return (
     <div
-      className={`pteic-editor-root${className ? ' ' + className : ''}`}
+      className={`pretext-editor${className ? ' ' + className : ''}`}
       style={style}
     >
       <div
         ref={containerRef}
-        className="pteic-editor-scroll"
+        className="editor-scroll"
         onClick={(e) => {
           if (e.target === containerRef.current) textareaRef.current?.focus({ preventScroll: true })
         }}
       >
-        <div ref={contentRef} className="pteic-editor-content">
-          <canvas ref={canvasRef} className="pteic-editor-canvas" />
+        <div ref={contentRef} className="editor-content">
+          <canvas ref={canvasRef} className="editor-canvas" />
         </div>
 
         {state?.menuPos && (
@@ -189,7 +189,7 @@ export const PretextEditor = forwardRef<
         <textarea
           ref={textareaRef}
           rows={1}
-          className="pteic-editor-textarea"
+          className="editor-textarea"
           onKeyDown={(e) => ctrlRef.current?.onKeyDown(e.nativeEvent)}
           onCompositionStart={() => ctrlRef.current?.onCompositionStart()}
           onCompositionEnd={(e) => ctrlRef.current?.onCompositionEnd(e.nativeEvent)}

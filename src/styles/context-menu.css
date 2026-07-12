@@ -1,4 +1,4 @@
-.pteic-cm {
+.pretext-editor .contextmenu {
   position: fixed;
   background: #252526;
   border: 1px solid #454545;
@@ -10,13 +10,13 @@
   user-select: none;
 }
 
-.pteic-cm-separator {
+.pretext-editor .contextmenu-separator {
   height: 1px;
   background: #454545;
   margin: 4px 0;
 }
 
-.pteic-cm-item {
+.pretext-editor .contextmenu-item {
   padding: 5px 20px;
   font-size: 13px;
   color: #cccccc;
@@ -24,15 +24,39 @@
   background: transparent;
 }
 
-.pteic-cm-item:hover {
+.pretext-editor .contextmenu-item:hover {
   background: #094771;
 }
 
-.pteic-cm-item--disabled {
+.pretext-editor .contextmenu-item--disabled {
   color: #5a5a5a;
   cursor: default;
 }
 
-.pteic-cm-item--disabled:hover {
+.pretext-editor .contextmenu-item--disabled:hover {
   background: transparent;
+}
+
+/* Light theme overrides */
+.pretext-editor[data-theme="light"] .contextmenu {
+  background: #f3f3f3;
+  border-color: #d4d4d4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.pretext-editor[data-theme="light"] .contextmenu-separator {
+  background: #d4d4d4;
+}
+
+.pretext-editor[data-theme="light"] .contextmenu-item {
+  color: #1f1f1f;
+}
+
+.pretext-editor[data-theme="light"] .contextmenu-item:hover {
+  background: #0060c0;
+  color: #ffffff;
+}
+
+.pretext-editor[data-theme="light"] .contextmenu-item--disabled {
+  color: #a0a0a0;
 }

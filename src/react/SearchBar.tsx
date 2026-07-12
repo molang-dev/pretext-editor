@@ -29,7 +29,7 @@ function IconBtn({
       title={title}
       onClick={onClick}
       disabled={disabled}
-      className={`pteic-btn${narrow ? ' pteic-btn--narrow' : ''}${active ? ' pteic-btn--active' : ''}`}
+      className={`button${narrow ? ' button--narrow' : ''}${active ? ' button--active' : ''}`}
     >
       {children}
     </button>
@@ -101,18 +101,18 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
       : `${state.currentIndex + 1} of ${state.matchCount > 999 ? '999+' : state.matchCount}`
 
   return (
-    <div className="pteic-sb">
+    <div className="searchbar">
       {/* ── Find row ── */}
-      <div className="pteic-sb-row">
+      <div className="searchbar-row">
         <IconBtn
           title={state.showReplace ? 'Collapse Replace' : 'Expand Replace'}
           onClick={actions.toggleReplace}
           narrow
         >
-          <span className={`pteic pteic-chevron-down${state.showReplace ? '' : ' pteic-chevron-down--collapsed'}`} />
+          <span className={`icon icon-chevrondown${state.showReplace ? '' : ' icon-chevrondown--collapsed'}`} />
         </IconBtn>
 
-        <div className="pteic-sb-input-wrap">
+        <div className="searchbar-inputwrap">
           <input
             ref={findRef}
             value={state.query}
@@ -120,47 +120,47 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
             onKeyDown={handleFindKeyDown}
             placeholder="Find"
             title={state.regexError ?? undefined}
-            className={`pteic-sb-input pteic-sb-find-input${hasError ? ' pteic-sb-input--error' : ''}`}
+            className={`searchbar-input searchbar-findinput${hasError ? ' searchbar-input--error' : ''}`}
           />
-          <div className="pteic-sb-toggles">
+          <div className="searchbar-toggles">
             <IconBtn title="Match Case (Alt+C)" active={state.caseSensitive}
               onClick={() => actions.setCaseSensitive(!state.caseSensitive)}>
-              <span className="pteic pteic-case-sensitive" />
+              <span className="icon icon-casesensitive" />
             </IconBtn>
             <IconBtn title="Match Whole Word (Alt+W)" active={state.wholeWord}
               onClick={() => actions.setWholeWord(!state.wholeWord)}>
-              <span className="pteic pteic-whole-word" />
+              <span className="icon icon-wholeword" />
             </IconBtn>
             <IconBtn title="Use Regular Expression (Alt+R)" active={state.useRegex}
               onClick={() => actions.setUseRegex(!state.useRegex)}>
-              <span className="pteic pteic-regex" />
+              <span className="icon icon-regex" />
             </IconBtn>
           </div>
         </div>
 
-        <span className={`pteic-sb-count${hasError || noMatches ? ' pteic-sb-count--error' : ''}`}>
+        <span className={`searchbar-count${hasError || noMatches ? ' searchbar-count--error' : ''}`}>
           {countText}
         </span>
 
-        <div className="pteic-sb-btns">
+        <div className="searchbar-buttons">
           <IconBtn title="Previous Match (Shift+Enter)" disabled={state.matchCount === 0} onClick={actions.prev}>
-            <span className="pteic pteic-arrow-up" />
+            <span className="icon icon-arrowup" />
           </IconBtn>
           <IconBtn title="Next Match (Enter)" disabled={state.matchCount === 0} onClick={actions.next}>
-            <span className="pteic pteic-arrow-down" />
+            <span className="icon icon-arrowdown" />
           </IconBtn>
           <IconBtn title="Close (Escape)" onClick={actions.close}>
-            <span className="pteic pteic-close" />
+            <span className="icon icon-close" />
           </IconBtn>
         </div>
       </div>
 
       {/* ── Replace row ── */}
       {state.showReplace && (
-        <div className="pteic-sb-row">
-          <div className="pteic-sb-spacer" />
+        <div className="searchbar-row">
+          <div className="searchbar-spacer" />
 
-          <div className="pteic-sb-input-wrap">
+          <div className="searchbar-inputwrap">
             <input
               ref={replaceRef}
               value={state.replaceQuery}
@@ -168,34 +168,34 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
               onKeyDown={handleReplaceKeyDown}
               placeholder="Replace"
               disabled={readOnly}
-              className={`pteic-sb-input pteic-sb-replace-input${readOnly ? ' pteic-sb-input--readonly' : ''}`}
+              className={`searchbar-input searchbar-replaceinput${readOnly ? ' searchbar-input--readonly' : ''}`}
             />
-            <div className="pteic-sb-overlay">
+            <div className="searchbar-overlay">
               <IconBtn
                 title="Preserve Case (AB)"
                 active={state.preserveCase}
                 disabled={readOnly}
                 onClick={() => actions.setPreserveCase(!state.preserveCase)}
               >
-                <span className="pteic pteic-preserve-case" />
+                <span className="icon icon-preservecase" />
               </IconBtn>
             </div>
           </div>
 
-          <div className="pteic-sb-btns">
+          <div className="searchbar-buttons">
             <IconBtn
               title="Replace (Enter)"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replace}
             >
-              <span className="pteic pteic-replace" />
+              <span className="icon icon-replace" />
             </IconBtn>
             <IconBtn
               title="Replace All (Ctrl+Alt+Enter)"
               disabled={readOnly || state.matchCount === 0 || !!state.regexError}
               onClick={actions.replaceAll}
             >
-              <span className="pteic pteic-replace-all" />
+              <span className="icon icon-replaceall" />
             </IconBtn>
           </div>
         </div>
@@ -203,7 +203,7 @@ export function SearchBar({ state, actions, readOnly }: SearchBarProps) {
 
       {/* ── Regex error ── */}
       {state.regexError && (
-        <div className="pteic-sb-error">{state.regexError}</div>
+        <div className="searchbar-error">{state.regexError}</div>
       )}
     </div>
   )

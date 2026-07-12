@@ -26,7 +26,7 @@ import '../styles/search-bar.css'
 // ---- Search bar icon helpers (h()-based) ----
 
 function IconSpan(icon: string) {
-  return h('span', { class: `pteic pteic-${icon}` })
+  return h('span', { class: `icon icon-${icon}` })
 }
 
 function IconBtn(
@@ -37,7 +37,7 @@ function IconBtn(
     title: props.title,
     disabled: props.disabled,
     onClick: props.onClick,
-    class: `pteic-btn${props.narrow ? ' pteic-btn--narrow' : ''}${props.active ? ' pteic-btn--active' : ''}`,
+    class: `button${props.narrow ? ' button--narrow' : ''}${props.active ? ' button--active' : ''}`,
   }, children)
 }
 
@@ -263,8 +263,8 @@ export const PretextEditor = defineComponent({
           : `${ss.currentIndex + 1} of ${ss.matchCount > 999 ? '999+' : ss.matchCount}`
 
       const children: any[] = [
-        h('div', { ref: contentRef, class: 'pteic-editor-content' }, [
-          h('canvas', { ref: canvasRef, class: 'pteic-editor-canvas' }),
+        h('div', { ref: contentRef, class: 'editor-content' }, [
+          h('canvas', { ref: canvasRef, class: 'editor-canvas' }),
         ]),
       ]
 
@@ -273,11 +273,11 @@ export const PretextEditor = defineComponent({
         children.push(
           h('div', {
             ref: ctxMenuRef,
-            class: 'pteic-cm',
+            class: 'contextmenu',
             style: { left: state.menuPos.x + 'px', top: state.menuPos.y + 'px' },
           }, state.menuItems.map((item: ContextMenuItem) => {
             if (item.separator) {
-              return h('div', { class: 'pteic-cm-separator' })
+              return h('div', { class: 'contextmenu-separator' })
             }
             return h('div', {
               onClick: () => {
@@ -287,7 +287,7 @@ export const PretextEditor = defineComponent({
                 }
               },
               key: item.label,
-              class: `pteic-cm-item${item.disabled ? ' pteic-cm-item--disabled' : ''}`,
+              class: `contextmenu-item${item.disabled ? ' contextmenu-item--disabled' : ''}`,
             }, item.label)
           })),
         )
@@ -298,7 +298,7 @@ export const PretextEditor = defineComponent({
         h('textarea', {
           ref: textareaRef,
           rows: 1,
-          class: 'pteic-editor-textarea',
+          class: 'editor-textarea',
           autocomplete: 'off',
           autocorrect: 'off',
           autocapitalize: 'off',
@@ -313,18 +313,18 @@ export const PretextEditor = defineComponent({
       const searchNode = ss.isOpen
         ? (props.renderSearchBar
           ? props.renderSearchBar(ss, searchActions)
-          : h('div', { class: 'pteic-sb' }, [
+          : h('div', { class: 'searchbar' }, [
             // ---- Find row ----
-            h('div', { class: 'pteic-sb-row' }, [
+            h('div', { class: 'searchbar-row' }, [
               IconBtn({
                 title: ss.showReplace ? 'Collapse Replace' : 'Expand Replace',
                 narrow: true,
                 onClick: searchActions.toggleReplace,
               }, [
-                IconSpan(`chevron-down${ss.showReplace ? '' : ' pteic-chevron-down--collapsed'}`),
+                h('span', { class: `icon icon-chevrondown${ss.showReplace ? '' : ' icon-chevrondown--collapsed'}` }),
               ]),
 
-              h('div', { class: 'pteic-sb-input-wrap' }, [
+              h('div', { class: 'searchbar-inputwrap' }, [
                 h('input', {
                   ref: findRef,
                   value: ss.query,
@@ -332,46 +332,46 @@ export const PretextEditor = defineComponent({
                   onKeydown: handleFindKeyDown,
                   placeholder: 'Find',
                   title: ss.regexError ?? undefined,
-                  class: `pteic-sb-input pteic-sb-find-input${noMatches ? ' pteic-sb-input--no-matches' : ''}${hasError ? ' pteic-sb-input--error' : ''}`,
+                  class: `searchbar-input searchbar-findinput${noMatches ? ' searchbar-input--nomatches' : ''}${hasError ? ' searchbar-input--error' : ''}`,
                 }),
-                h('div', { class: 'pteic-sb-toggles' }, [
-                  IconBtn({ title: 'Match Case (Alt+C)', active: ss.caseSensitive, onClick: () => searchActions.setCaseSensitive(!ss.caseSensitive) }, [IconSpan('case-sensitive')]),
-                  IconBtn({ title: 'Match Whole Word (Alt+W)', active: ss.wholeWord, onClick: () => searchActions.setWholeWord(!ss.wholeWord) }, [IconSpan('whole-word')]),
+                h('div', { class: 'searchbar-toggles' }, [
+                  IconBtn({ title: 'Match Case (Alt+C)', active: ss.caseSensitive, onClick: () => searchActions.setCaseSensitive(!ss.caseSensitive) }, [IconSpan('casesensitive')]),
+                  IconBtn({ title: 'Match Whole Word (Alt+W)', active: ss.wholeWord, onClick: () => searchActions.setWholeWord(!ss.wholeWord) }, [IconSpan('wholeword')]),
                   IconBtn({ title: 'Use Regular Expression (Alt+R)', active: ss.useRegex, onClick: () => searchActions.setUseRegex(!ss.useRegex) }, [IconSpan('regex')]),
                 ]),
               ]),
 
-              h('span', { class: `pteic-sb-count${hasError || noMatches ? ' pteic-sb-count--error' : ''}` }, countText),
+              h('span', { class: `searchbar-count${hasError || noMatches ? ' searchbar-count--error' : ''}` }, countText),
 
-              h('div', { class: 'pteic-sb-btns' }, [
-                IconBtn({ title: 'Previous Match (Shift+Enter)', disabled: ss.matchCount === 0, onClick: searchActions.prev }, [IconSpan('arrow-up')]),
-                IconBtn({ title: 'Next Match (Enter)', disabled: ss.matchCount === 0, onClick: searchActions.next }, [IconSpan('arrow-down')]),
+              h('div', { class: 'searchbar-buttons' }, [
+                IconBtn({ title: 'Previous Match (Shift+Enter)', disabled: ss.matchCount === 0, onClick: searchActions.prev }, [IconSpan('arrowup')]),
+                IconBtn({ title: 'Next Match (Enter)', disabled: ss.matchCount === 0, onClick: searchActions.next }, [IconSpan('arrowdown')]),
                 IconBtn({ title: 'Close (Escape)', onClick: searchActions.close }, [IconSpan('close')]),
               ]),
             ]),
 
             // ---- Replace row ----
-            ss.showReplace && h('div', { class: 'pteic-sb-row' }, [
-              h('div', { class: 'pteic-sb-spacer' }),
-              h('div', { class: 'pteic-sb-input-wrap' }, [
+            ss.showReplace && h('div', { class: 'searchbar-row' }, [
+              h('div', { class: 'searchbar-spacer' }),
+              h('div', { class: 'searchbar-inputwrap' }, [
                 h('input', {
                   ref: replaceRef,
                   value: ss.replaceQuery,
                   onInput: (e: Event) => searchActions.setReplaceQuery((e.target as HTMLInputElement).value),
                   onKeydown: handleReplaceKeyDown,
                   placeholder: 'Replace',
-                  class: `pteic-sb-input pteic-sb-replace-input${noMatches ? ' pteic-sb-input--no-matches' : ''}`,
+                  class: `searchbar-input searchbar-replaceinput${noMatches ? ' searchbar-input--nomatches' : ''}`,
                 }),
-                h('div', { class: 'pteic-sb-overlay' }, [
+                h('div', { class: 'searchbar-overlay' }, [
                   IconBtn({
                     title: 'Preserve Case (AB)',
                     active: ss.preserveCase,
                     disabled: ss.useRegex,
                     onClick: () => searchActions.setPreserveCase(!ss.preserveCase),
-                  }, [IconSpan('preserve-case')]),
+                  }, [IconSpan('preservecase')]),
                 ]),
               ]),
-              h('div', { class: 'pteic-sb-btns' }, [
+              h('div', { class: 'searchbar-buttons' }, [
                 IconBtn({
                   title: 'Replace (Enter)',
                   disabled: ss.matchCount === 0 || !!ss.regexError,
@@ -381,19 +381,19 @@ export const PretextEditor = defineComponent({
                   title: 'Replace All (Ctrl+Alt+Enter)',
                   disabled: ss.matchCount === 0 || !!ss.regexError,
                   onClick: searchActions.replaceAll,
-                }, [IconSpan('replace-all')]),
+                }, [IconSpan('replaceall')]),
               ]),
             ]),
 
             // ---- Regex error ----
-            ss.regexError && h('div', { class: 'pteic-sb-error' }, ss.regexError),
+            ss.regexError && h('div', { class: 'searchbar-error' }, ss.regexError),
           ]))
         : null
 
-      return h('div', { class: 'pteic-editor-root' }, [
+      return h('div', { class: 'pretext-editor' }, [
         h('div', {
           ref: containerRef,
-          class: 'pteic-editor-scroll',
+          class: 'editor-scroll',
           onClick: onContainerClick,
         }, children),
         searchNode,

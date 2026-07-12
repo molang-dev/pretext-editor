@@ -1,11 +1,11 @@
-.pteic-editor-root {
+.pretext-editor {
   position: relative;
   height: 100%;
   width: 100%;
   overflow: hidden;
 }
 
-.pteic-editor-scroll {
+.pretext-editor .editor-scroll {
   position: absolute;
   inset: 0;
   overflow: auto;
@@ -13,11 +13,11 @@
   cursor: text;
 }
 
-.pteic-editor-content {
+.pretext-editor .editor-content {
   position: relative;
 }
 
-.pteic-editor-canvas {
+.pretext-editor .editor-canvas {
   position: sticky;
   top: 0;
   left: 0;
@@ -25,7 +25,7 @@
   width: 100%;
 }
 
-.pteic-editor-textarea {
+.pretext-editor .editor-textarea {
   position: absolute;
   top: 0;
   left: 0;

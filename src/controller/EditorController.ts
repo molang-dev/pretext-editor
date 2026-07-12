@@ -314,8 +314,16 @@ export class EditorController {
       })
     }
 
+    // Apply theme attribute for CSS light/dark overrides
+    this.applyThemeAttribute()
+
     // Initial repaint
     requestAnimationFrame(() => this.repaint())
+  }
+
+  private applyThemeAttribute(): void {
+    const root = this.container?.parentElement
+    if (root) root.dataset.theme = this.theme.includes('light') ? 'light' : 'dark'
   }
 
   private resetCursorBlink(): void {
@@ -383,6 +391,7 @@ export class EditorController {
     let workerWillRepaint = false
     if (options.theme !== undefined && options.theme !== this.theme) {
       this.theme = options.theme
+      this.applyThemeAttribute()
       this.tokenizer.setTheme(this.theme)
       if (this.workerReady) {
         this.triggerFullTokenize(true)

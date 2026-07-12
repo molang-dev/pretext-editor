@@ -117,88 +117,90 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
       </div>
 
       <div class="editor-wrap-shell">
-        <div #container class="pteic-editor-scroll">
-          <div #content [style.height.px]="totalHeight" class="pteic-editor-content">
-            <canvas #canvas class="pteic-editor-canvas"></canvas>
+        <div class="pretext-editor">
+          <div #container class="editor-scroll">
+            <div #content [style.height.px]="totalHeight" class="editor-content">
+              <canvas #canvas class="editor-canvas"></canvas>
+            </div>
+
+            @if (menuPos) {
+              <div class="contextmenu" [style.left.px]="menuPos.x" [style.top.px]="menuPos.y">
+                @for (item of resolvedMenuItems; track $index) {
+                  @if (item.separator) {
+                    <div class="contextmenu-separator"></div>
+                  } @else {
+                    <div class="contextmenu-item"
+                      [class.contextmenu-item--disabled]="item.disabled"
+                      (click)="onMenuItemClick(item)">
+                      {{ item.label }}
+                    </div>
+                  }
+                }
+              </div>
+            }
+
+            <textarea #textarea rows="1" class="editor-textarea"
+              autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+              (keydown)="onKeyDown($event)"
+              (compositionstart)="onCompositionStart()"
+              (compositionend)="onCompositionEnd($event)">
+            </textarea>
           </div>
 
-          @if (menuPos) {
-            <div class="pteic-cm" [style.left.px]="menuPos.x" [style.top.px]="menuPos.y">
-              @for (item of resolvedMenuItems; track $index) {
-                @if (item.separator) {
-                  <div class="pteic-cm-separator"></div>
-                } @else {
-                  <div class="pteic-cm-item"
-                    [class.pteic-cm-item--disabled]="item.disabled"
-                    (click)="onMenuItemClick(item)">
-                    {{ item.label }}
+          @if (searchState.isOpen) {
+            <div class="searchbar">
+              <div class="searchbar-row">
+                <button class="button button--narrow"
+                  [title]="searchState.showReplace ? 'Collapse Replace' : 'Expand Replace'"
+                  (click)="toggleReplace()">
+                  <span class="icon icon-chevrondown"
+                    [class.icon-chevrondown--collapsed]="!searchState.showReplace">
+                  </span>
+                </button>
+                <div class="searchbar-inputwrap">
+                  <input #findInput
+                    [value]="searchState.query"
+                    (input)="onFindInput($event)"
+                    (keydown)="onFindKeyDown($event)"
+                    placeholder="Find"
+                    [title]="searchState.regexError ?? ''"
+                    class="searchbar-input searchbar-findinput"
+                    [class.searchbar-input--nomatches]="noMatches()"
+                    [class.searchbar-input--error]="searchState.regexError">
+                  <div class="searchbar-toggles">
+                    <button class="button" [class.button--active]="searchState.caseSensitive" title="Match Case (Alt+C)" (click)="toggleCaseSensitive()"><span class="icon icon-casesensitive"></span></button>
+                    <button class="button" [class.button--active]="searchState.wholeWord" title="Match Whole Word (Alt+W)" (click)="toggleWholeWord()"><span class="icon icon-wholeword"></span></button>
+                    <button class="button" [class.button--active]="searchState.useRegex" title="Use Regular Expression (Alt+R)" (click)="toggleUseRegex()"><span class="icon icon-regex"></span></button>
                   </div>
-                }
+                </div>
+                <span class="searchbar-count" [class.searchbar-count--error]="!!searchState.regexError || noMatches()">{{ countText() }}</span>
+                <div class="searchbar-buttons">
+                  <button class="button" title="Previous Match (Shift+Enter)" [disabled]="searchState.matchCount === 0" (click)="searchPrev()"><span class="icon icon-arrowup"></span></button>
+                  <button class="button" title="Next Match (Enter)" [disabled]="searchState.matchCount === 0" (click)="searchNext()"><span class="icon icon-arrowdown"></span></button>
+                  <button class="button" title="Close (Escape)" (click)="closeSearch()"><span class="icon icon-close"></span></button>
+                </div>
+              </div>
+              @if (searchState.showReplace) {
+                <div class="searchbar-row">
+                  <div class="searchbar-spacer"></div>
+                  <div class="searchbar-inputwrap">
+                    <input #replaceInput [value]="searchState.replaceQuery" (input)="onReplaceInput($event)" (keydown)="onReplaceKeyDown($event)" placeholder="Replace" class="searchbar-input searchbar-replaceinput" [class.searchbar-input--nomatches]="noMatches()">
+                    <div class="searchbar-overlay">
+                      <button class="button" [class.button--active]="searchState.preserveCase" title="Preserve Case (AB)" [disabled]="searchState.useRegex" (click)="togglePreserveCase()"><span class="icon icon-preservecase"></span></button>
+                    </div>
+                  </div>
+                  <div class="searchbar-buttons">
+                    <button class="button" title="Replace (Enter)" [disabled]="searchState.matchCount === 0 || !!searchState.regexError" (click)="replaceOne()"><span class="icon icon-replace"></span></button>
+                    <button class="button" title="Replace All (Ctrl+Alt+Enter)" [disabled]="searchState.matchCount === 0 || !!searchState.regexError" (click)="replaceAll()"><span class="icon icon-replaceall"></span></button>
+                  </div>
+                </div>
+              }
+              @if (searchState.regexError) {
+                <div class="searchbar-error">{{ searchState.regexError }}</div>
               }
             </div>
           }
-
-          <textarea #textarea rows="1" class="pteic-editor-textarea"
-            autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-            (keydown)="onKeyDown($event)"
-            (compositionstart)="onCompositionStart()"
-            (compositionend)="onCompositionEnd($event)">
-          </textarea>
         </div>
-
-        @if (searchState.isOpen) {
-          <div class="pteic-sb">
-            <div class="pteic-sb-row">
-              <button class="pteic-btn pteic-btn--narrow"
-                [title]="searchState.showReplace ? 'Collapse Replace' : 'Expand Replace'"
-                (click)="toggleReplace()">
-                <span class="pteic pteic-chevron-down"
-                  [class.pteic-chevron-down--collapsed]="!searchState.showReplace">
-                </span>
-              </button>
-              <div class="pteic-sb-input-wrap">
-                <input #findInput
-                  [value]="searchState.query"
-                  (input)="onFindInput($event)"
-                  (keydown)="onFindKeyDown($event)"
-                  placeholder="Find"
-                  [title]="searchState.regexError ?? ''"
-                  class="pteic-sb-input pteic-sb-find-input"
-                  [class.pteic-sb-input--no-matches]="noMatches()"
-                  [class.pteic-sb-input--error]="searchState.regexError">
-                <div class="pteic-sb-toggles">
-                  <button class="pteic-btn" [class.pteic-btn--active]="searchState.caseSensitive" title="Match Case (Alt+C)" (click)="toggleCaseSensitive()"><span class="pteic pteic-case-sensitive"></span></button>
-                  <button class="pteic-btn" [class.pteic-btn--active]="searchState.wholeWord" title="Match Whole Word (Alt+W)" (click)="toggleWholeWord()"><span class="pteic pteic-whole-word"></span></button>
-                  <button class="pteic-btn" [class.pteic-btn--active]="searchState.useRegex" title="Use Regular Expression (Alt+R)" (click)="toggleUseRegex()"><span class="pteic pteic-regex"></span></button>
-                </div>
-              </div>
-              <span class="pteic-sb-count" [class.pteic-sb-count--error]="!!searchState.regexError || noMatches()">{{ countText() }}</span>
-              <div class="pteic-sb-btns">
-                <button class="pteic-btn" title="Previous Match (Shift+Enter)" [disabled]="searchState.matchCount === 0" (click)="searchPrev()"><span class="pteic pteic-arrow-up"></span></button>
-                <button class="pteic-btn" title="Next Match (Enter)" [disabled]="searchState.matchCount === 0" (click)="searchNext()"><span class="pteic pteic-arrow-down"></span></button>
-                <button class="pteic-btn" title="Close (Escape)" (click)="closeSearch()"><span class="pteic pteic-close"></span></button>
-              </div>
-            </div>
-            @if (searchState.showReplace) {
-              <div class="pteic-sb-row">
-                <div class="pteic-sb-spacer"></div>
-                <div class="pteic-sb-input-wrap">
-                  <input #replaceInput [value]="searchState.replaceQuery" (input)="onReplaceInput($event)" (keydown)="onReplaceKeyDown($event)" placeholder="Replace" class="pteic-sb-input pteic-sb-replace-input" [class.pteic-sb-input--no-matches]="noMatches()">
-                  <div class="pteic-sb-overlay">
-                    <button class="pteic-btn" [class.pteic-btn--active]="searchState.preserveCase" title="Preserve Case (AB)" [disabled]="searchState.useRegex" (click)="togglePreserveCase()"><span class="pteic pteic-preserve-case"></span></button>
-                  </div>
-                </div>
-                <div class="pteic-sb-btns">
-                  <button class="pteic-btn" title="Replace (Enter)" [disabled]="searchState.matchCount === 0 || !!searchState.regexError" (click)="replaceOne()"><span class="pteic pteic-replace"></span></button>
-                  <button class="pteic-btn" title="Replace All (Ctrl+Alt+Enter)" [disabled]="searchState.matchCount === 0 || !!searchState.regexError" (click)="replaceAll()"><span class="pteic pteic-replace-all"></span></button>
-                </div>
-              </div>
-            }
-            @if (searchState.regexError) {
-              <div class="pteic-sb-error">{{ searchState.regexError }}</div>
-            }
-          </div>
-        }
       </div>
 
       <div class="statusbar">

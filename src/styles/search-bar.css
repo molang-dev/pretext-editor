@@ -1,4 +1,4 @@
-.pteic-sb {
+.pretext-editor .searchbar {
   position: absolute;
   top: 10px;
   right: 18px;
@@ -15,18 +15,18 @@
   user-select: none;
 }
 
-.pteic-sb-row {
+.pretext-editor .searchbar-row {
   display: flex;
   align-items: center;
   gap: 5px;
 }
 
-.pteic-sb-input-wrap {
+.pretext-editor .searchbar-inputwrap {
   position: relative;
   flex-shrink: 0;
 }
 
-.pteic-sb-input {
+.pretext-editor .searchbar-input {
   width: 240px;
   background: #3c3c3c;
   border: 1px solid transparent;
@@ -40,27 +40,29 @@
   height: 30px;
 }
 
-.pteic-sb-input:focus {
+.pretext-editor .searchbar-input:focus {
   border-color: #0e639c;
 }
 
 /* 3 toggle buttons: 3×26 + 2×2 gaps + 4 right clearance = 86px */
-.pteic-sb-find-input {
+.pretext-editor .searchbar-findinput {
   padding-right: 86px;
 }
 
 /* preserve-case button: 26 + 4 = 30px */
-.pteic-sb-replace-input {
+.pretext-editor .searchbar-replaceinput {
   padding-right: 30px;
 }
 
+.pretext-editor .searchbar-input--nomatches {
+  background: rgba(228, 86, 73, 0.18);
+}
 
-
-.pteic-sb-input--readonly {
+.pretext-editor .searchbar-input--readonly {
   opacity: 0.4;
 }
 
-.pteic-sb-toggles {
+.pretext-editor .searchbar-toggles {
   position: absolute;
   right: 3px;
   top: 50%;
@@ -70,14 +72,14 @@
   align-items: center;
 }
 
-.pteic-sb-overlay {
+.pretext-editor .searchbar-overlay {
   position: absolute;
   right: 3px;
   top: 50%;
   transform: translateY(-50%);
 }
 
-.pteic-sb-count {
+.pretext-editor .searchbar-count {
   font-size: 13px;
   color: #d4d4d4;
   min-width: 74px;
@@ -86,21 +88,21 @@
   white-space: nowrap;
 }
 
-.pteic-sb-count--error {
+.pretext-editor .searchbar-count--error {
   color: #f48771;
 }
 
-.pteic-sb-btns {
+.pretext-editor .searchbar-buttons {
   display: flex;
   gap: 2px;
 }
 
-.pteic-sb-spacer {
+.pretext-editor .searchbar-spacer {
   width: 15px;
   flex-shrink: 0;
 }
 
-.pteic-sb-error {
+.pretext-editor .searchbar-error {
   font-size: 12px;
   color: #f48771;
   padding-left: 20px;
@@ -110,7 +112,7 @@
   white-space: nowrap;
 }
 
-.pteic-btn {
+.pretext-editor .button {
   width: 26px;
   height: 26px;
   display: flex;
@@ -127,33 +129,76 @@
   outline: none;
 }
 
-.pteic-btn:hover:not(:disabled) {
+.pretext-editor .button:hover:not(:disabled) {
   background: #37373d;
 }
 
-.pteic-btn.pteic-btn--active {
+.pretext-editor .button.button--active {
   background: rgba(18, 136, 214, 0.4);
   border-color: #088fe9;
   color: #fff;
 }
 
-.pteic-btn.pteic-btn--active:hover:not(:disabled) {
+.pretext-editor .button.button--active:hover:not(:disabled) {
   background: rgba(14, 99, 156, 0.4);
 }
 
-.pteic-btn:disabled {
+.pretext-editor .button:disabled {
   color: #555;
   cursor: default;
 }
 
-.pteic-btn--narrow {
+.pretext-editor .button--narrow {
   width: 15px;
 }
 
-.pteic.pteic-chevron-down {
-  transition: transform 0.12s;
+/* Light theme overrides */
+.pretext-editor[data-theme="light"] .searchbar {
+  background: #f3f3f3;
+  border-color: #c8c8c8;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
 }
 
-.pteic.pteic-chevron-down.pteic-chevron-down--collapsed {
-  transform: rotate(-90deg);
+.pretext-editor[data-theme="light"] .searchbar-input {
+  background: #ffffff;
+  border-color: #c8c8c8;
+  color: #1f1f1f;
+}
+
+.pretext-editor[data-theme="light"] .searchbar-input:focus {
+  border-color: #0078d4;
+}
+
+.pretext-editor[data-theme="light"] .searchbar-count {
+  color: #717171;
+}
+
+.pretext-editor[data-theme="light"] .searchbar-count--error {
+  color: #a1260d;
+}
+
+.pretext-editor[data-theme="light"] .searchbar-error {
+  color: #a1260d;
+}
+
+.pretext-editor[data-theme="light"] .button {
+  color: #616161;
+}
+
+.pretext-editor[data-theme="light"] .button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+.pretext-editor[data-theme="light"] .button.button--active {
+  background: rgba(18, 136, 214, 0.25);
+  border-color: #1177bb;
+  color: #1f1f1f;
+}
+
+.pretext-editor[data-theme="light"] .button.button--active:hover:not(:disabled) {
+  background: rgba(18, 136, 214, 0.4);
+}
+
+.pretext-editor[data-theme="light"] .button:disabled {
+  color: #a0a0a0;
 }
