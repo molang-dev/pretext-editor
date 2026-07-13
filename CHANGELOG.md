@@ -4,6 +4,17 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.5] — 2026-07-14
+
+### Fixed
+- **Syntax highlighting after opening a file** — switching to a new file via `setValue` now re-tokenizes immediately when the grammar is already loaded. Previously, opening a second file with the same language (or any file when the grammar had already finished loading) retained the previous file's token colours.
+- **Svelte `wordWrap` prop** — the Svelte wrapper now accepts and applies the `wordWrap` prop; previously the option was silently ignored.
+
+### Changed
+- **`pretextEditorPlugin()` (Vite)** — the plugin now automatically injects `define: { __DEV__: 'false' }` and adds the package root to `server.fs.allow`, so consumers no longer need to configure these manually.
+
+---
+
 ## [0.6.4] — 2026-07-13
 
 ### Added
