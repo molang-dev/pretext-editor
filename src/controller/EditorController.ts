@@ -631,6 +631,7 @@ export class EditorController {
       this.extraCursors = []
       this.contentWidthDirty = true
       this.layoutDirty = true
+      if (this.language && this.workerReady) this.triggerFullTokenize()
       this.notifyAndRepaint()
     }
   }
