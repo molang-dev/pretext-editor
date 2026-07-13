@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { pretextEditorPlugin } from 'pretext-editor/vite'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [vue(), pretextEditorPlugin()],
 })

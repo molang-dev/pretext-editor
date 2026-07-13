@@ -28,6 +28,7 @@
     | ((builtins: ContextMenuBuiltins) => ContextMenuItem[])
     | undefined = undefined;
   export let keymap: Partial<Record<CommandId, KeyBinding>> | undefined = undefined;
+  export let wordWrap: boolean = false;
 
   const dispatch = createEventDispatcher<{ change: string; 'cursor-change': { line: number; col: number } }>();
 
@@ -131,6 +132,7 @@
       workerUrl: WORKER_URL,
       theme,
       keymap,
+      wordWrap,
     });
     ctrl.mount(containerEl, canvasEl, textareaEl, onStateChange, contentEl);
     window.addEventListener('pointerdown', onWindowPointerDown, { capture: true });
@@ -146,7 +148,7 @@
     ctrl.setValue(value);
   }
   $: if (ctrl) {
-    ctrl.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, keymap });
+    ctrl.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, keymap, wordWrap });
   }
 
   // Expose handle methods

@@ -58,15 +58,16 @@ var EXT_TO_LANG = {
   haml: 'haml', glsl: 'glsl', vert: 'glsl', frag: 'glsl',
 }
 
-var SAMPLE = '// Pure HTML5 + pretext-editor — no React, no Vue, no anything\n' +
-  'function fibonacci(n) {\n' +
-  '  if (n <= 1) return n\n' +
-  '  return fibonacci(n - 1) + fibonacci(n - 2)\n' +
-  '}\n' +
-  '\n' +
-  'for (var i = 0; i < 10; i++) {\n' +
-  '  console.log("fib(" + i + ") = " + fibonacci(i))\n' +
-  '}\n'
+var SAMPLE = `function fibonacci(n: number): number {
+  if (n <= 1) return n
+  return fibonacci(n - 1) + fibonacci(n - 2)
+}
+
+// Test it
+for (let i = 0; i < 10; i++) {
+  console.log(\`fib(\${i}) = \${fibonacci(i)}\`)
+}
+`
 
 // --- Helpers ---
 function el(tag, attrs, children) {
@@ -117,7 +118,7 @@ var tabSize = 4
 var wordWrap = false
 
 // --- Build UI ---
-document.body.style.cssText = 'margin:0;padding:0;background:#1e1e1e;color:#d4d4d4;font-family:sans-serif;height:100vh;display:flex;flex-direction:column'
+document.body.style.cssText = 'display:flex;flex-direction:column;height:100%'
 
 // Toolbar
 var toolbar = el('div', {
@@ -126,8 +127,14 @@ var toolbar = el('div', {
 toolbar.appendChild(el('b', { style: { color: '#0098ff' } }, 'pretext-editor'))
 toolbar.appendChild(el('span', { style: { color: '#888' } }, 'Vanilla HTML5 Demo (zero framework)'))
 
+// Open File button (marginLeft: auto, flush right like React)
+var fileInput = el('input', { type: 'file', style: { display: 'none' } })
+var openBtn = el('button', { style: Object.assign({}, btnStyle, { marginLeft: 'auto' }) }, 'Open File')
+toolbar.appendChild(openBtn)
+toolbar.appendChild(fileInput)
+
 // Language selector
-var langLabel = el('label', { style: { marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc' } })
+var langLabel = el('label', { style: { display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc' } })
 langLabel.appendChild(document.createTextNode('Language: '))
 var langSelect = el('select', { style: selStyle })
 LANGUAGES.forEach(function(l) {
@@ -152,27 +159,22 @@ var themeSelect = el('select', { style: selStyle })
 themeLabel.appendChild(themeSelect)
 toolbar.appendChild(themeLabel)
 
-// Font size selector
+// Font size (number input like React)
 var fontLabel = el('label', { style: { display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc' } })
 fontLabel.appendChild(document.createTextNode('Font size: '))
-var fontSelect = el('select', { style: Object.assign({}, selStyle, { width: '64px' }) })
-for (var n = 5; n <= 40; n += 2) {
-  var opt = el('option', { value: String(n) }, String(n))
-  if (n === fontSize) opt.selected = true
-  fontSelect.appendChild(opt)
-}
-fontLabel.appendChild(fontSelect)
+var fontInput = el('input', { type: 'number', style: Object.assign({}, selStyle, { width: '52px' }) })
+fontInput.value = String(fontSize)
+fontInput.min = '8'
+fontInput.max = '40'
+fontLabel.appendChild(fontInput)
 toolbar.appendChild(fontLabel)
 
-// Open File button
-var fileInput = el('input', { type: 'file', style: { display: 'none' } })
-var openBtn = el('button', { style: btnStyle }, 'Open File')
-toolbar.appendChild(openBtn)
-toolbar.appendChild(fileInput)
-
-// Word wrap button
-var wrapBtn = el('button', { style: btnStyle }, '换行')
-toolbar.appendChild(wrapBtn)
+// Word wrap (checkbox like React)
+var wrapLabel = el('label', { style: { display: 'flex', alignItems: 'center', gap: '6px', color: '#ccc', cursor: 'pointer' } })
+var wrapCheck = el('input', { type: 'checkbox' })
+wrapLabel.appendChild(wrapCheck)
+wrapLabel.appendChild(document.createTextNode('Word Wrap'))
+toolbar.appendChild(wrapLabel)
 
 document.body.appendChild(toolbar)
 
@@ -241,7 +243,7 @@ document.body.appendChild(editorWrap)
 
 // Status bar
 var statusBar = el('div', { style: { display: 'flex', gap: '16px', alignItems: 'center', padding: '2px 16px', background: '#007acc', color: '#fff', fontSize: '12px', flexShrink: '0', userSelect: 'none' } })
-var statusPos = el('span', {}, '行 1, 列 1')
+var statusPos = el('span', {}, 'Ln 1, Col 1')
 var statusTab = el('span', {}, 'Tab Size: ' + tabSize)
 var statusEnc = el('span', {}, 'UTF-8')
 var statusLang = el('span', {}, 'TypeScript')
@@ -256,6 +258,10 @@ var ctrl = new EditorController({
   fontSize: fontSize,
   tabSize: tabSize,
   wordWrap: wordWrap,
+  keymap: { find: ['ctrl', 'p'] },
+  onChanged: function(r1, c1, r2, c2, oldValue, newValue) {
+    console.log('changed', r1, c1, r2, c2, JSON.stringify(oldValue), JSON.stringify(newValue))
+  },
 })
 
 var searchState = {
@@ -266,7 +272,7 @@ var searchState = {
 
 function updateStatus(s) {
   var doc = s.doc
-  statusPos.textContent = '行 ' + (doc.cursor.line + 1) + ', 列 ' + (doc.cursor.col + 1)
+  statusPos.textContent = 'Ln ' + (doc.cursor.line + 1) + ', Col ' + (doc.cursor.col + 1)
   statusTab.textContent = 'Tab Size: ' + tabSize
   var langEntry = LANGUAGES.find(function(l) { return l.value === language })
   statusLang.textContent = langEntry ? langEntry.label : language
@@ -373,8 +379,9 @@ themeSelect.addEventListener('change', function() {
   ctrl.updateOptions({ theme: theme })
 })
 
-fontSelect.addEventListener('change', function() {
-  fontSize = Number(fontSelect.value)
+fontInput.addEventListener('change', function() {
+  fontSize = Math.max(8, Math.min(40, Number(fontInput.value)))
+  fontInput.value = String(fontSize)
   ctrl.updateOptions({ fontSize: fontSize })
 })
 
@@ -398,11 +405,9 @@ fileInput.addEventListener('change', function(e) {
   e.target.value = ''
 })
 
-wrapBtn.addEventListener('click', function() {
-  wordWrap = !wordWrap
+wrapCheck.addEventListener('change', function() {
+  wordWrap = wrapCheck.checked
   ctrl.updateOptions({ wordWrap: wordWrap })
-  wrapBtn.style.background = wordWrap ? '#1177bb' : '#0e639c'
-  wrapBtn.style.outline = wordWrap ? '1px solid #4fc3f7' : 'none'
 })
 
 document.addEventListener('click', function(e) {

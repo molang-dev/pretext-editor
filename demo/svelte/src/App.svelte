@@ -180,7 +180,6 @@ for (let i = 0; i < 10; i++) {
     background: #0e639c; color: #fff; border: none;
     border-radius: 4px; padding: 4px 12px; font-size: 13px; cursor: pointer;
   }
-  .btn--active { background: #1177bb; outline: 1px solid #4fc3f7; }
   .editor-wrap { flex: 1; overflow: hidden; }
   .file-input-hidden { display: none; }
   .statusbar {

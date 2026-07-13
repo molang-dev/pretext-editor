@@ -1,12 +1,7 @@
 import { defineConfig } from 'vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
+import { pretextEditorPlugin } from 'pretext-editor/vite'
 
 export default defineConfig({
-  plugins: [svelte()],
-  server: {
-    fs: {
-      // Allow serving files from the parent package's dist/ (icons referenced by Svelte component)
-      allow: ['../..'],
-    },
-  },
+  plugins: [svelte(), pretextEditorPlugin()],
 })
