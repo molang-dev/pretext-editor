@@ -1,4 +1,7 @@
+import { log } from '@molang/alogjs'
 import { loadWASM, createOnigScanner, createOnigString } from 'vscode-oniguruma'
+
+declare const __DEV__: boolean
 import { Registry, INITIAL, type IRawGrammar, type StateStack } from 'vscode-textmate'
 import type { TokenizedLine } from '../core/renderer'
 
@@ -214,17 +217,17 @@ let currentFromLine = 0
 async function tokenizeBatches(reqId: number, fromLine: number, visFrom: number, visTo: number): Promise<void> {
   latestPriorityEnd = 0
   let from = fromLine
-  console.log(`[hl] tokenizeBatches reqId=${reqId} fromLine=${fromLine} visibleTo=${visTo} totalLines=${lines.length}`)
+  if (__DEV__) log.D('hl', 'tokenizeBatches reqId=%v fromLine=%v visibleTo=%v totalLines=%v', reqId, fromLine, visTo, lines.length)
 
   // Phase 1: priority pass — visible viewport + one viewport height of buffer below
   const prefetch = Math.max(0, visTo - visFrom)
   const phase1End = Math.min(lines.length, visTo + prefetch)
   if (phase1End > from) {
     if (currentReqId !== reqId) return
-    console.log(`[hl] phase1 start from=${from} to=${phase1End}`)
+    if (__DEV__) log.D('hl', 'phase1 start from=%v to=%v', from, phase1End)
     const result = tokenizeRange(from, phase1End)
     const actualTo = from + result.length
-    console.log(`[hl] phase1 done actualTo=${actualTo}`)
+    if (__DEV__) log.D('hl', 'phase1 done actualTo=%v', actualTo)
     if (currentReqId !== reqId) return
     self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
     if (result.length < phase1End - from) return
@@ -246,7 +249,7 @@ async function tokenizeBatches(reqId: number, fromLine: number, visFrom: number,
       const result = tokenizeRange(from, to)
       const actualTo = from + result.length
       if (currentReqId !== reqId) return
-      console.log(`[hl] phase2 batch from=${from} to=${actualTo}`)
+      if (__DEV__) log.D('hl', 'phase2 batch from=%v to=%v', from, actualTo)
       self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
       if (result.length < to - from) break
       from = actualTo
@@ -260,7 +263,7 @@ async function tokenizeBatches(reqId: number, fromLine: number, visFrom: number,
     const result = tokenizeRange(from, to)
     const actualTo = from + result.length
     if (currentReqId !== reqId) return
-    console.log(`[hl] phase2 batch from=${from} to=${actualTo}`)
+    if (__DEV__) log.D('hl', 'phase2 batch from=%v to=%v', from, actualTo)
     self.postMessage({ type: 'batch', reqId, from, to: actualTo, tokenLines: result })
     if (result.length < to - from) break
     from = to

@@ -62,14 +62,6 @@ const code = ref('console.log("hello")')
 
 > Import from `pretext-editor/vue`.
 
-> **Vite users:** `pretext-editor` uses a Web Worker internally. Add it to `optimizeDeps.exclude` so Vite does not pre-bundle it (pre-bundling changes `import.meta.url`, breaking Worker URL resolution):
-> ```ts
-> // vite.config.ts
-> export default defineConfig({
->   optimizeDeps: { exclude: ['pretext-editor'] },
-> })
-> ```
-
 ### Angular
 
 Angular integrates directly with `EditorController`. Create the controller and mount it in `ngAfterViewInit`:
@@ -156,6 +148,26 @@ console.log(toString(doc3))
 ```
 
 > The main entry `pretext-editor` exports only core functions and `EditorController`, with zero framework dependencies. Usable directly via `require` in Node.js.
+
+## Vite Setup
+
+`pretext-editor` ships a built-in Vite plugin that copies grammar chunk files and `onig.wasm` to your build output. **Required for production builds; dev server works without it.**
+
+```ts
+// vite.config.ts
+import { pretextEditorPlugin } from 'pretext-editor/vite'
+
+export default defineConfig({
+  plugins: [
+    // ... your other plugins
+    pretextEditorPlugin(),
+  ],
+})
+```
+
+Without the plugin, `vite build` will produce a broken editor where syntax highlighting fails silently (grammar files and WASM return 404 at runtime).
+
+---
 
 ## Props
 

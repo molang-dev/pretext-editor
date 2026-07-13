@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "start": "vite"
+    "start": "vite",
+    "build": "vite build"
   },
   "dependencies": {
     "pretext-editor": "^0.6.4",

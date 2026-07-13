@@ -40,6 +40,11 @@
     "./svelte": {
       "types": "./dist/svelte/index.d.ts",
       "svelte": "./dist/svelte/PretextEditor.svelte"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js",
+      "require": "./dist/vite.cjs"
     }
   },
   "files": [
@@ -55,12 +60,15 @@
   },
   "devDependencies": {
     "@angular/core": "^22.0.2",
+    "@molang/alogjs": "^0.1.5",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "svelte": "^4.2.20",
     "tm-themes": "^1.12.2",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
+    "vite": "^8.1.4",
     "vscode-oniguruma": "^2.0.1",
     "vscode-textmate": "^9.3.2",
     "vue": "^3.5.38"

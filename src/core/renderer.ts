@@ -1,7 +1,9 @@
 import type { Cursor, Selection } from './document'
 import { isCollapsed, normalizeSelection } from './document'
 import type { SearchMatch } from './search'
-import { log } from './logger'
+import { log } from '@molang/alogjs'
+
+declare const __DEV__: boolean
 
 export type TokenSpan = { text: string; color: string }
 export type TokenizedLine = TokenSpan[]
@@ -309,7 +311,7 @@ export function renderCanvas({
   }
 
   const dirtyTag = singleLine !== undefined ? ' (cursor-line only)' : dirtyLines ? ` (dirty:${[...dirtyLines].join(',')})` : ''
-  log(`[draw] firstLine=${firstLine} lastLine=${lastLine} total=${lines.length}${dirtyTag}`)
+  if (__DEV__) log.D('draw', 'firstLine=%v lastLine=%v total=%v%v', firstLine, lastLine, lines.length, dirtyTag)
 
   // singleLine mode: clip to that row's pixel rect
   if (singleLine !== undefined) {
@@ -352,7 +354,7 @@ export function renderCanvas({
 
   const hasSel = selection && !isCollapsed(selection)
   const [selStart, selEnd] = hasSel ? normalizeSelection(selection!) : [cursor, cursor]
-  if (hasSel) log(`[render] hasSel=true selStart=${selStart.line} selEnd=${selEnd.line} firstLine=${firstLine} lastLine=${lastLine}`)
+  if (__DEV__ && hasSel) log.D('render', 'hasSel selStart=%v selEnd=%v firstLine=%v lastLine=%v', selStart.line, selEnd.line, firstLine, lastLine)
 
   // Binary search for search highlights in visible logical line range
   const firstLogLine = visualLayout
@@ -501,7 +503,7 @@ export function renderCanvas({
           }
         }
       } else {
-        log(`[draw line ${logLine}] plain cols ${startCol}..${endCol} of ${lineText.length}  xStart=${gutterWidth}  canvasW=${w}`)
+        if (__DEV__) log.D('draw', 'line %v plain cols %v..%v of %v xStart=%v canvasW=%v', logLine, startCol, endCol, lineText.length, gutterWidth, w)
         ctx.fillStyle = tc.fg
         fillTextWithTabs(ctx, lineText.slice(startCol, endCol), gutterWidth, textY, tabSize)
       }
@@ -656,7 +658,7 @@ export function renderCanvas({
             drawTo = lineText.length
           }
         }
-        log(`[draw line ${i}] cols ${drawFrom}..${drawTo} of ${lineText.length}  xStart=${gutterWidth - scrollLeft}  canvasW=${w}`)
+        if (__DEV__) log.D('draw', 'line %v cols %v..%v of %v xStart=%v canvasW=%v', i, drawFrom, drawTo, lineText.length, gutterWidth - scrollLeft, w)
       } else {
         const xLineStart = gutterWidth - scrollLeft
         const lineW = measureWithTabs(ctx, lineText, tabSize)
@@ -672,9 +674,9 @@ export function renderCanvas({
           const drawX = xLineStart + measureWithTabs(ctx, lineText.slice(0, charStart), tabSize)
           ctx.fillStyle = tc.fg
           fillTextWithTabs(ctx, lineText.slice(charStart, charEnd), drawX, textY, tabSize)
-          log(`[draw line ${i}] plain cols ${charStart}..${charEnd} of ${lineText.length}  xStart=${xLineStart}  canvasW=${w}`)
+          if (__DEV__) log.D('draw', 'line %v plain cols %v..%v of %v xStart=%v canvasW=%v', i, charStart, charEnd, lineText.length, xLineStart, w)
         } else {
-          log(`[draw line ${i}] plain skipped  xStart=${xLineStart}  lineW=${lineW}  canvasW=${w}`)
+          if (__DEV__) log.D('draw', 'line %v plain skipped xStart=%v lineW=%v canvasW=%v', i, xLineStart, lineW, w)
         }
       }
 

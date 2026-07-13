@@ -47,7 +47,9 @@ import {
   colFromX,
   type VisualLayout,
 } from '../core/renderer'
-import { log } from '../core/logger'
+import { log } from '@molang/alogjs'
+
+declare const __DEV__: boolean
 
 // ---- Types ----
 
@@ -432,7 +434,7 @@ export class EditorController {
           const sel = this.getActiveSel()
           const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
           this.commitUpdate(insert(base, text), null)
-          log('[paste]', text.length, 'chars')
+          if (__DEV__) log.D('paste', 'len=%v chars', text.length)
           requestAnimationFrame(() => this.scrollCursorIntoView())
         }).catch(() => {})
         return
@@ -526,7 +528,7 @@ export class EditorController {
       }
       case 'deleteLine': {
         this.commitUpdate(deleteLine(this.doc, this.getActiveSel()), null)
-        log('[delete] line')
+        if (__DEV__) log.D('delete', 'line')
         return
       }
       case 'insertLineBelow': {
@@ -541,14 +543,14 @@ export class EditorController {
         this.applyToAllCursors((d, sel) =>
           sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordBackward(d),
         )
-        log('[delete] word-backward')
+        if (__DEV__) log.D('delete', 'word-backward')
         return
       }
       case 'deleteWordForward': {
         this.applyToAllCursors((d, sel) =>
           sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordForward(d),
         )
-        log('[delete] word-forward')
+        if (__DEV__) log.D('delete', 'word-forward')
         return
       }
       case 'toggleLineComment': {
@@ -928,7 +930,7 @@ export class EditorController {
       const sel = this.getActiveSel()
       const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
       this.commitUpdate(insert(base, text), null)
-      log('[paste]', text.length, 'chars')
+      if (__DEV__) log.D('paste', 'len=%v chars', text.length)
       requestAnimationFrame(() => this.scrollCursorIntoView())
     }).catch(() => {})
   }
@@ -950,8 +952,18 @@ export class EditorController {
   private notifyAndRepaint(): void {
     this.resetCursorBlink()
     this.buildMenuItems()
+    if (this.menuPos) this.menuPos = this.clampMenuPos(this.menuPos)
     this.onStateChange?.()
     this.repaint()
+  }
+
+  private clampMenuPos(pos: { x: number; y: number }): { x: number; y: number } {
+    const ITEM_H = 30, SEP_H = 9, PAD = 8, W = 200, GAP = 4
+    const h = PAD + this.menuItems.reduce((sum, it) => sum + (it.separator ? SEP_H : ITEM_H), 0)
+    return {
+      x: Math.max(0, Math.min(pos.x, window.innerWidth - W - GAP)),
+      y: Math.max(0, Math.min(pos.y, window.innerHeight - h - GAP)),
+    }
   }
 
   // ---- Internal: Commit update with undo ----
@@ -979,10 +991,10 @@ export class EditorController {
 
       const visFrom = this.visibleLineStart()
       const visEnd = this.visibleLineEnd(newLines.length)
-      log(`[layout] commitUpdate fromLine=${fromLine} cursorLine=${newDoc.cursor.line} visibleEnd=${visEnd} totalLines=${newLines.length}`)
+      if (__DEV__) log.D('layout', 'commitUpdate fromLine=%v cursorLine=%v visibleEnd=%v totalLines=%v', fromLine, newDoc.cursor.line, visEnd, newLines.length)
       const cb: TokenBatchCallback = (from, to, tl) => {
         if (this.tokenEpoch !== epoch) return
-        log(`[hl recv] from=${from} to=${to}`)
+        if (__DEV__) log.D('hl', 'recv from=%v to=%v', from, to)
         for (let i = 0; i < tl.length; i++) this.tokenLines![from + i] = tl[i]
         if (this.batchOverlapsViewport(from, to)) this.notifyAndRepaint()
       }
@@ -1254,7 +1266,7 @@ export class EditorController {
     }
 
     const sel = this.selAnchor ? { anchor: this.selAnchor, head: this.doc.cursor } : null
-    log(`[repaint] selAnchor=${JSON.stringify(this.selAnchor)} cursor=${JSON.stringify(this.doc.cursor)} sel=${JSON.stringify(sel)}`)
+    if (__DEV__) log.D('repaint', 'selAnchor=%v cursor=%v sel=%v', JSON.stringify(this.selAnchor), JSON.stringify(this.doc.cursor), JSON.stringify(sel))
     const tokenLinesToRender = this.tokenLinesPatch ?? this.tokenLines
     this.tokenLinesPatch = null
 
@@ -1493,7 +1505,7 @@ export class EditorController {
 
   private onPointerMove = (e: PointerEvent): void => {
     if (!(e.buttons & 1)) return
-    log(`[drag] buttons=${e.buttons} dragAnchor=${JSON.stringify(this.dragAnchor)} columnDrag=${this.columnDrag !== null}`)
+    if (__DEV__) log.D('drag', 'buttons=%v dragAnchor=%v columnDrag=%v', e.buttons, JSON.stringify(this.dragAnchor), this.columnDrag !== null)
     if (this.columnDrag !== null) {
       const pos = this.cursorFromPointer(e)
       const { anchorLine, anchorCol } = this.columnDrag
@@ -1504,7 +1516,7 @@ export class EditorController {
     const newHead = this.cursorFromPointer(e)
     this.selAnchor = this.dragAnchor
     this.doc = { ...this.doc, cursor: newHead }
-    log(`[drag] newHead=${JSON.stringify(newHead)} selAnchor=${JSON.stringify(this.selAnchor)}`)
+    if (__DEV__) log.D('drag', 'newHead=%v selAnchor=%v', JSON.stringify(newHead), JSON.stringify(this.selAnchor))
     this.notifyAndRepaint()
     this.lastDragEvent = e
     this.updateAutoScroll(e)
@@ -1805,7 +1817,7 @@ export class EditorController {
         this.applyToAllCursors((d, sel) =>
           sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteBackward(d),
         )
-        log('[delete] backspace')
+        if (__DEV__) log.D('delete', 'backspace')
         break
       }
       case 'Delete': {
@@ -1813,7 +1825,7 @@ export class EditorController {
         this.applyToAllCursors((d, sel) =>
           sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteForward(d),
         )
-        log('[delete] delete')
+        if (__DEV__) log.D('delete', 'delete')
         break
       }
       case 'Tab': {

@@ -2,6 +2,9 @@ import { defineConfig } from 'tsup'
 import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync } from 'fs'
 
 const mainConfig = defineConfig({
+  define: {
+    __DEV__: String(process.env.NODE_ENV === 'development'),
+  },
   entry: {
     index: 'src/index.ts',
     'react/index': 'src/react/index.ts',
@@ -36,7 +39,6 @@ const mainConfig = defineConfig({
     cpSync('src/angular/editor.component.ts', 'dist/angular/editor.component.ts')
     cpSync('src/controller/EditorController.ts', 'dist/controller/EditorController.ts')
     cpSync('src/core/document.ts', 'dist/core/document.ts')
-    cpSync('src/core/logger.ts', 'dist/core/logger.ts')
     cpSync('src/core/renderer.ts', 'dist/core/renderer.ts')
     cpSync('src/core/tokenizer.ts', 'dist/core/tokenizer.ts')
     cpSync('src/core/search.ts', 'dist/core/search.ts')
@@ -57,6 +59,9 @@ const mainConfig = defineConfig({
 
 // Worker bundle: core logic inline, grammar files as separate chunks (lazy-loaded on demand)
 const workerConfig = defineConfig({
+  define: {
+    __DEV__: String(process.env.NODE_ENV === 'development'),
+  },
   entry: { 'highlight.worker': 'src/worker/highlight.worker.ts' },
   format: ['esm'],
   dts: false,
@@ -65,4 +70,14 @@ const workerConfig = defineConfig({
   noExternal: ['vscode-textmate', 'vscode-oniguruma'],
 })
 
-export default [mainConfig, workerConfig]
+const vitePluginConfig = defineConfig({
+  entry: { vite: 'src/vite.ts' },
+  format: ['esm', 'cjs'],
+  dts: true,
+  external: ['vite'],
+  platform: 'node',
+  shims: true,
+  clean: false,
+})
+
+export default [mainConfig, workerConfig, vitePluginConfig]
