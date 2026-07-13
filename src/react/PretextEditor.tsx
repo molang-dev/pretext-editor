@@ -35,6 +35,7 @@ export type { SearchState, SearchActions } from '../core/search'
 export interface PretextEditorProps {
   value: string
   onChanged?: import('../controller/EditorController').OnChangedCallback
+  keymap?: import('../controller/EditorController').PretextEditorProps['keymap']
   language?: string
   fontSize?: number
   fontFamily?: string
@@ -59,6 +60,7 @@ export const PretextEditor = forwardRef<
   {
     value,
     onChanged,
+    keymap,
     language,
     fontSize = DEFAULT_FONT_SIZE,
     fontFamily = DEFAULT_FONT_FAMILY,
@@ -99,6 +101,7 @@ export const PretextEditor = forwardRef<
     const ctrl = new EditorController({
       value,
       onChanged,
+      keymap,
       language,
       fontSize,
       fontFamily,
@@ -119,8 +122,8 @@ export const PretextEditor = forwardRef<
 
   // Sync props into controller
   useLayoutEffect(() => {
-    ctrlRef.current?.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, wordWrap })
-  }, [language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, wordWrap])
+    ctrlRef.current?.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, wordWrap, keymap })
+  }, [language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, wordWrap, keymap])
 
   useLayoutEffect(() => {
     ctrlRef.current?.setValue(value)

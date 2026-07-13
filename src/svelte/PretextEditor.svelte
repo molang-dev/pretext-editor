@@ -12,7 +12,7 @@
     DEFAULT_FONT_FAMILY,
     DEFAULT_TAB_SIZE,
   } from '../core/renderer';
-  import type { EditorControllerState, IEditorBinding, ContextMenuBuiltins, ContextMenuItem, PretextEditorHandle } from '../controller/EditorController';
+  import type { EditorControllerState, IEditorBinding, ContextMenuBuiltins, ContextMenuItem, PretextEditorHandle, KeyBinding, CommandId } from '../controller/EditorController';
   import type { SearchState, SearchActions } from '../core/search';
 
   // Props
@@ -27,6 +27,7 @@
   export let contextMenuItems:
     | ((builtins: ContextMenuBuiltins) => ContextMenuItem[])
     | undefined = undefined;
+  export let keymap: Partial<Record<CommandId, KeyBinding>> | undefined = undefined;
 
   const dispatch = createEventDispatcher<{ change: string; 'cursor-change': { line: number; col: number } }>();
 
@@ -129,6 +130,7 @@
       worker: eagerWorker ?? undefined,
       workerUrl: WORKER_URL,
       theme,
+      keymap,
     });
     ctrl.mount(containerEl, canvasEl, textareaEl, onStateChange, contentEl);
     window.addEventListener('pointerdown', onWindowPointerDown, { capture: true });
@@ -144,7 +146,7 @@
     ctrl.setValue(value);
   }
   $: if (ctrl) {
-    ctrl.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme });
+    ctrl.updateOptions({ language, fontSize, fontFamily, tabSize, binding, active, contextMenuItems, theme, keymap });
   }
 
   // Expose handle methods

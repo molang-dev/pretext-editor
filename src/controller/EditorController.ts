@@ -51,6 +51,36 @@ import { log } from '../core/logger'
 
 // ---- Types ----
 
+export type KeyChord = string[]
+export type KeyBinding = KeyChord | KeyChord[] | null
+export type CommandId =
+  | 'selectAll' | 'copy' | 'cut' | 'paste'
+  | 'undo' | 'redo'
+  | 'find'
+  | 'selectLine' | 'selectAllOccurrences' | 'selectNextOccurrence'
+  | 'deleteLine' | 'insertLineBelow' | 'insertLineAbove'
+  | 'deleteWordBackward' | 'deleteWordForward'
+  | 'toggleLineComment'
+
+export const DEFAULT_KEYMAP: Record<CommandId, KeyChord[]> = {
+  selectAll:            [['ctrl', 'a']],
+  copy:                 [['ctrl', 'c']],
+  cut:                  [['ctrl', 'x']],
+  paste:                [['ctrl', 'v']],
+  undo:                 [['ctrl', 'z']],
+  redo:                 [['ctrl', 'shift', 'z'], ['ctrl', 'y']],
+  find:                 [['ctrl', 'f']],
+  selectLine:           [['ctrl', 'l']],
+  selectAllOccurrences: [['ctrl', 'shift', 'l']],
+  selectNextOccurrence: [['ctrl', 'd']],
+  deleteLine:           [['ctrl', 'shift', 'k']],
+  insertLineBelow:      [['ctrl', 'enter']],
+  insertLineAbove:      [['ctrl', 'shift', 'enter']],
+  deleteWordBackward:   [['ctrl', 'backspace']],
+  deleteWordForward:    [['ctrl', 'delete']],
+  toggleLineComment:    [['ctrl', '/']],
+}
+
 export interface ContextMenuItem {
   label: string
   onClick: () => void
@@ -76,6 +106,7 @@ export type OnChangedCallback = (r1: number, c1: number, r2: number, c2: number,
 export interface PretextEditorProps {
   value: string
   onChanged?: OnChangedCallback
+  keymap?: Partial<Record<CommandId, KeyBinding>>
   language?: string
   fontSize?: number
   fontFamily?: string
@@ -89,6 +120,7 @@ export interface PretextEditorProps {
 export interface EditorControllerOptions {
   value: string
   onChanged?: OnChangedCallback
+  keymap?: Partial<Record<CommandId, KeyBinding>>
   language?: string
   fontSize?: number
   fontFamily?: string
@@ -174,6 +206,7 @@ export class EditorController {
 
   // Options
   onChanged: OnChangedCallback | undefined
+  private resolvedKeymap: Record<CommandId, KeyChord[] | null>
   language: string | undefined
   fontSize: number
   fontFamily: string
@@ -228,6 +261,7 @@ export class EditorController {
   constructor(options: EditorControllerOptions) {
     this.doc = fromString(options.value)
     this.onChanged = options.onChanged
+    this.resolvedKeymap = this.buildResolvedKeymap(options.keymap)
     this.language = options.language
     this.fontSize = options.fontSize ?? DEFAULT_FONT_SIZE
     this.fontFamily = options.fontFamily ?? DEFAULT_FONT_FAMILY
@@ -323,6 +357,210 @@ export class EditorController {
     requestAnimationFrame(() => this.repaint())
   }
 
+  private buildResolvedKeymap(override?: Partial<Record<CommandId, KeyBinding>>): Record<CommandId, KeyChord[] | null> {
+    const result = { ...DEFAULT_KEYMAP } as Record<CommandId, KeyChord[] | null>
+    if (!override) return result
+    for (const [id, binding] of Object.entries(override) as [CommandId, KeyBinding][]) {
+      result[id] = this.normalizeBinding(binding)
+    }
+    return result
+  }
+
+  private normalizeBinding(b: KeyBinding): KeyChord[] | null {
+    if (b === null) return null
+    if (b.length === 0) return []
+    return typeof b[0] === 'string' ? [b as KeyChord] : b as KeyChord[]
+  }
+
+  private matchesChord(e: KeyboardEvent, chord: KeyChord): boolean {
+    const MODS = ['ctrl', 'shift', 'alt', 'meta']
+    const lower = chord.map(s => s.toLowerCase())
+    const needsCtrl = lower.includes('ctrl')
+    const needsShift = lower.includes('shift')
+    const needsAlt = lower.includes('alt')
+    const key = lower.find(s => !MODS.includes(s))
+    if (!key) return false
+    if (needsCtrl !== (e.ctrlKey || e.metaKey)) return false
+    if (needsShift !== e.shiftKey) return false
+    if (needsAlt !== e.altKey) return false
+    return e.key.toLowerCase() === key
+  }
+
+  private findCommand(e: KeyboardEvent): CommandId | null {
+    for (const [id, chords] of Object.entries(this.resolvedKeymap) as [CommandId, KeyChord[] | null][]) {
+      if (!chords) continue
+      for (const chord of chords) {
+        if (this.matchesChord(e, chord)) return id
+      }
+    }
+    return null
+  }
+
+  private execCommand(id: CommandId): void {
+    switch (id) {
+      case 'selectAll': {
+        const lastLine = this.doc.lines.length - 1
+        this.selAnchor = { line: 0, col: 0 }
+        this.doc = { ...this.doc, cursor: { line: lastLine, col: this.doc.lines[lastLine].length } }
+        this.notifyAndRepaint()
+        this.scrollCursorIntoView()
+        return
+      }
+      case 'copy': {
+        const sel = this.getActiveSel()
+        if (sel && !isCollapsed(sel)) {
+          navigator.clipboard.writeText(getSelectedText(this.doc.lines, sel)).catch(() => {})
+        }
+        return
+      }
+      case 'cut': {
+        const sel = this.getActiveSel()
+        if (sel && !isCollapsed(sel)) {
+          navigator.clipboard.writeText(getSelectedText(this.doc.lines, sel)).catch(() => {})
+          this.commitUpdate(deleteSelectedText(this.doc, sel), null)
+        } else {
+          const { cursor, lines } = this.doc
+          const lineText = lines[cursor.line] + (lines.length > 1 ? '\n' : '')
+          navigator.clipboard.writeText(lineText).catch(() => {})
+          this.commitUpdate(deleteLine(this.doc, null), null)
+        }
+        return
+      }
+      case 'paste': {
+        navigator.clipboard.readText().then((text) => {
+          if (!text) return
+          const sel = this.getActiveSel()
+          const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
+          this.commitUpdate(insert(base, text), null)
+          log('[paste]', text.length, 'chars')
+          requestAnimationFrame(() => this.scrollCursorIntoView())
+        }).catch(() => {})
+        return
+      }
+      case 'undo': {
+        const prev = this.undoStack.pop()
+        if (prev) {
+          const oldLines = this.doc.lines
+          this.redoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
+          this.doc = prev.doc
+          this.selAnchor = prev.selAnchor
+          this.extraCursors = prev.extraCursors
+          this.lastExternalValue = toString(prev.doc)
+          this.notifyChanged(oldLines)
+          this.notifyAndRepaint()
+          this.scrollCursorIntoView()
+          if (this.searchState.isOpen) this.scheduleSearch()
+        }
+        return
+      }
+      case 'redo': {
+        const next = this.redoStack.pop()
+        if (next) {
+          const oldLines = this.doc.lines
+          this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
+          this.doc = next.doc
+          this.selAnchor = next.selAnchor
+          this.extraCursors = next.extraCursors
+          this.lastExternalValue = toString(next.doc)
+          this.notifyChanged(oldLines)
+          this.notifyAndRepaint()
+          this.scrollCursorIntoView()
+          if (this.searchState.isOpen) this.scheduleSearch()
+        }
+        return
+      }
+      case 'find': {
+        this.openSearch()
+        return
+      }
+      case 'selectLine': {
+        const [newDoc, newAnchor] = selectCurrentLine(this.doc)
+        this.selAnchor = newAnchor
+        this.doc = newDoc
+        this.notifyAndRepaint()
+        return
+      }
+      case 'selectAllOccurrences': {
+        const currentAnchor = this.selAnchor
+        let searchText: string
+        if (currentAnchor) {
+          searchText = getSelectedText(this.doc.lines, { anchor: currentAnchor, head: this.doc.cursor })
+        } else {
+          const result = selectWordAtCursor(this.doc)
+          if (!result) return
+          const [wDoc, wAnchor] = result
+          searchText = getSelectedText(wDoc.lines, { anchor: wAnchor, head: wDoc.cursor })
+        }
+        if (!searchText) return
+        const occurrences = findAllOccurrences(this.doc.lines, searchText)
+        if (occurrences.length === 0) return
+        const [first, ...rest] = occurrences
+        this.doc = { ...this.doc, cursor: first.head }
+        this.selAnchor = first.anchor
+        this.extraCursors = rest.map(o => ({ head: o.head, anchor: o.anchor }))
+        this.notifyAndRepaint()
+        return
+      }
+      case 'selectNextOccurrence': {
+        const currentAnchor = this.selAnchor
+        if (!currentAnchor) {
+          const result = selectWordAtCursor(this.doc)
+          if (!result) return
+          const [newDoc, newAnchor] = result
+          this.selAnchor = newAnchor
+          this.doc = newDoc
+          this.notifyAndRepaint()
+          return
+        }
+        const searchText = getSelectedText(this.doc.lines, { anchor: currentAnchor, head: this.doc.cursor })
+        if (!searchText) return
+        const allHeads = [this.doc.cursor, ...this.extraCursors.map(s => s.head)]
+        const lastEnd = Math.max(...allHeads.map(h => toOffset(this.doc.lines, h)))
+        const found = findNextOccurrence(this.doc.lines, searchText, lastEnd)
+        if (!found) return
+        const foundEndOff = toOffset(this.doc.lines, found.head)
+        if (allHeads.some(h => toOffset(this.doc.lines, h) === foundEndOff)) return
+        this.extraCursors = [...this.extraCursors, { head: found.head, anchor: found.anchor }]
+        this.notifyAndRepaint()
+        return
+      }
+      case 'deleteLine': {
+        this.commitUpdate(deleteLine(this.doc, this.getActiveSel()), null)
+        log('[delete] line')
+        return
+      }
+      case 'insertLineBelow': {
+        this.commitUpdate(insertLineBelow(this.doc), null)
+        return
+      }
+      case 'insertLineAbove': {
+        this.commitUpdate(insertLineAbove(this.doc), null)
+        return
+      }
+      case 'deleteWordBackward': {
+        this.applyToAllCursors((d, sel) =>
+          sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordBackward(d),
+        )
+        log('[delete] word-backward')
+        return
+      }
+      case 'deleteWordForward': {
+        this.applyToAllCursors((d, sel) =>
+          sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordForward(d),
+        )
+        log('[delete] word-forward')
+        return
+      }
+      case 'toggleLineComment': {
+        const commentStr = LINE_COMMENT[this.language ?? ''] ?? ''
+        if (!commentStr) return
+        const [newDoc, newAnchor] = toggleLineComment(this.doc, this.getActiveSel(), commentStr)
+        this.commitUpdate(newDoc, newAnchor)
+        return
+      }
+    }
+  }
+
   private notifyChanged(oldLines: string[]): void {
     if (!this.onChanged) return
     const newLines = this.doc.lines
@@ -407,6 +645,7 @@ export class EditorController {
       this.contentWidthDirty = true
       if (!this.wordWrap && this.container) this.container.scrollLeft = 0
     }
+    if (options.keymap !== undefined) this.resolvedKeymap = this.buildResolvedKeymap(options.keymap)
     if (options.binding !== undefined) this.binding = options.binding
     if (options.active !== undefined) {
       this.active = options.active
@@ -1390,202 +1629,13 @@ export class EditorController {
     const shift = e.shiftKey
     const alt = e.altKey
 
-    if (ctrl) {
-      switch (e.key.toLowerCase()) {
-        case 'a': {
-          e.preventDefault()
-          const lastLine = this.doc.lines.length - 1
-          this.selAnchor = { line: 0, col: 0 }
-          this.doc = { ...this.doc, cursor: { line: lastLine, col: this.doc.lines[lastLine].length } }
-          this.notifyAndRepaint()
-          this.scrollCursorIntoView()
-          return
-        }
-        case 'c': {
-          e.preventDefault()
-          const sel = this.getActiveSel()
-          if (sel && !isCollapsed(sel)) {
-            navigator.clipboard.writeText(getSelectedText(this.doc.lines, sel)).catch(() => {})
-          }
-          return
-        }
-        case 'x': {
-          e.preventDefault()
-          const sel = this.getActiveSel()
-          if (sel && !isCollapsed(sel)) {
-            navigator.clipboard.writeText(getSelectedText(this.doc.lines, sel)).catch(() => {})
-            this.commitUpdate(deleteSelectedText(this.doc, sel), null)
-          } else {
-            const { cursor, lines } = this.doc
-            const lineText = lines[cursor.line] + (lines.length > 1 ? '\n' : '')
-            navigator.clipboard.writeText(lineText).catch(() => {})
-            this.commitUpdate(deleteLine(this.doc, null), null)
-          }
-          return
-        }
-        case 'v': {
-          e.preventDefault()
-          navigator.clipboard.readText().then((text) => {
-            if (!text) return
-            const sel = this.getActiveSel()
-            const base = sel && !isCollapsed(sel) ? deleteSelectedText(this.doc, sel) : this.doc
-            this.commitUpdate(insert(base, text), null)
-            log('[paste]', text.length, 'chars')
-            requestAnimationFrame(() => this.scrollCursorIntoView())
-          }).catch(() => {})
-          return
-        }
-        case 'z': {
-          e.preventDefault()
-          if (shift) {
-            const next = this.redoStack.pop()
-            if (next) {
-              const oldLines = this.doc.lines
-              this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
-              this.doc = next.doc
-              this.selAnchor = next.selAnchor
-              this.extraCursors = next.extraCursors
-              const str = toString(next.doc)
-              this.lastExternalValue = str
-              this.notifyChanged(oldLines)
-              this.notifyAndRepaint()
-              this.scrollCursorIntoView()
-              if (this.searchState.isOpen) this.scheduleSearch()
-            }
-          } else {
-            const prev = this.undoStack.pop()
-            if (prev) {
-              const oldLines = this.doc.lines
-              this.redoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
-              this.doc = prev.doc
-              this.selAnchor = prev.selAnchor
-              this.extraCursors = prev.extraCursors
-              const str = toString(prev.doc)
-              this.lastExternalValue = str
-              this.notifyChanged(oldLines)
-              this.notifyAndRepaint()
-              this.scrollCursorIntoView()
-              if (this.searchState.isOpen) this.scheduleSearch()
-            }
-          }
-          return
-        }
-        case 'y': {
-          e.preventDefault()
-          const next = this.redoStack.pop()
-          if (next) {
-            const oldLines = this.doc.lines
-            this.undoStack.push({ doc: this.doc, selAnchor: this.selAnchor, extraCursors: this.extraCursors })
-            this.doc = next.doc
-            this.selAnchor = next.selAnchor
-            this.extraCursors = next.extraCursors
-            const str = toString(next.doc)
-            this.lastExternalValue = str
-            this.notifyChanged(oldLines)
-            this.notifyAndRepaint()
-            this.scrollCursorIntoView()
-            if (this.searchState.isOpen) this.scheduleSearch()
-          }
-          return
-        }
-        case 'f': {
-          e.preventDefault()
-          this.openSearch()
-          return
-        }
-        case 'l': {
-          e.preventDefault()
-          if (shift) {
-            // Ctrl+Shift+L: select all occurrences
-            const currentAnchor = this.selAnchor
-            let searchText: string
-            if (currentAnchor) {
-              searchText = getSelectedText(this.doc.lines, { anchor: currentAnchor, head: this.doc.cursor })
-            } else {
-              const result = selectWordAtCursor(this.doc)
-              if (!result) return
-              const [wDoc, wAnchor] = result
-              searchText = getSelectedText(wDoc.lines, { anchor: wAnchor, head: wDoc.cursor })
-            }
-            if (!searchText) return
-            const occurrences = findAllOccurrences(this.doc.lines, searchText)
-            if (occurrences.length === 0) return
-            const [first, ...rest] = occurrences
-            this.doc = { ...this.doc, cursor: first.head }
-            this.selAnchor = first.anchor
-            this.extraCursors = rest.map(o => ({ head: o.head, anchor: o.anchor }))
-            this.notifyAndRepaint()
-            return
-          }
-          const [newDoc, newAnchor] = selectCurrentLine(this.doc)
-          this.selAnchor = newAnchor
-          this.doc = newDoc
-          this.notifyAndRepaint()
-          return
-        }
-        case 'd': {
-          e.preventDefault()
-          const currentAnchor = this.selAnchor
-          if (!currentAnchor) {
-            const result = selectWordAtCursor(this.doc)
-            if (!result) return
-            const [newDoc, newAnchor] = result
-            this.selAnchor = newAnchor
-            this.doc = newDoc
-            this.notifyAndRepaint()
-            return
-          }
-          const searchText = getSelectedText(this.doc.lines, { anchor: currentAnchor, head: this.doc.cursor })
-          if (!searchText) return
-          const allHeads = [this.doc.cursor, ...this.extraCursors.map(s => s.head)]
-          const lastEnd = Math.max(...allHeads.map(h => toOffset(this.doc.lines, h)))
-          const found = findNextOccurrence(this.doc.lines, searchText, lastEnd)
-          if (!found) return
-          const foundEndOff = toOffset(this.doc.lines, found.head)
-          const alreadySelected = allHeads.some(h => toOffset(this.doc.lines, h) === foundEndOff)
-          if (alreadySelected) return
-          this.extraCursors = [...this.extraCursors, { head: found.head, anchor: found.anchor }]
-          this.notifyAndRepaint()
-          return
-        }
-        case 'k': {
-          if (!shift) return
-          e.preventDefault()
-          this.commitUpdate(deleteLine(this.doc, this.getActiveSel()), null)
-          log('[delete] line')
-          return
-        }
-        case 'enter': {
-          e.preventDefault()
-          this.commitUpdate(shift ? insertLineAbove(this.doc) : insertLineBelow(this.doc), null)
-          return
-        }
-        case 'backspace': {
-          e.preventDefault()
-          this.applyToAllCursors((d, sel) =>
-            sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordBackward(d),
-          )
-          log('[delete] word-backward')
-          return
-        }
-        case 'delete': {
-          e.preventDefault()
-          this.applyToAllCursors((d, sel) =>
-            sel && !isCollapsed(sel) ? deleteSelectedText(d, sel) : deleteWordForward(d),
-          )
-          log('[delete] word-forward')
-          return
-        }
-        case '/': {
-          e.preventDefault()
-          const commentStr = LINE_COMMENT[this.language ?? ''] ?? ''
-          if (!commentStr) return
-          const [newDoc, newAnchor] = toggleLineComment(this.doc, this.getActiveSel(), commentStr)
-          this.commitUpdate(newDoc, newAnchor)
-          return
-        }
-      }
+    const cmdId = this.findCommand(e)
+    if (cmdId !== null) {
+      e.preventDefault()
+      this.execCommand(cmdId)
+      return
     }
+
 
     // Navigation & editing (non-Ctrl)
     switch (e.key) {

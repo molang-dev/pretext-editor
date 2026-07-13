@@ -164,6 +164,7 @@ export default function App() {
           tabSize={tabSize}
           theme={theme}
           wordWrap={wordWrap}
+          keymap={{ find: ['ctrl', 'p'] }}
         />
       </div>
 

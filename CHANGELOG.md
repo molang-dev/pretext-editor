@@ -4,6 +4,14 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.4] — 2026-07-13
+
+### Added
+- **Configurable keymap** — `EditorController` (and all framework wrappers) now accept a `keymap` option that overrides individual command bindings. Each entry is a chord array such as `['ctrl', 'p']`, a list of chords `[['ctrl', 'y'], ['ctrl', 'shift', 'z']]`, or `null` to disable the command. Unspecified commands keep their default binding. Supported commands: `selectAll`, `copy`, `cut`, `paste`, `undo`, `redo`, `find`, `selectLine`, `selectAllOccurrences`, `selectNextOccurrence`, `deleteLine`, `insertLineBelow`, `insertLineAbove`, `deleteWordBackward`, `deleteWordForward`, `toggleLineComment`. The full default keymap is exported as `DEFAULT_KEYMAP`.
+- **Dynamic keymap updates** — `ctrl.updateOptions({ keymap: ... })` replaces the active keymap at runtime without recreating the editor.
+
+---
+
 ## [0.6.3] — 2026-07-13
 
 ### Added

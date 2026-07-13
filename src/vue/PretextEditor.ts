@@ -11,6 +11,8 @@ import type {
   IEditorBinding,
   ContextMenuBuiltins,
   ContextMenuItem,
+  KeyBinding,
+  CommandId,
 } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'
 
@@ -57,6 +59,7 @@ export const PretextEditor = defineComponent({
     renderSearchBar: { type: Function as PropType<(state: SearchState, actions: SearchActions) => any>, default: undefined },
     theme: { type: String, default: 'dark-plus' },
     wordWrap: { type: Boolean, default: false },
+    keymap: { type: Object as PropType<Partial<Record<CommandId, KeyBinding>>>, default: undefined },
   },
   emits: ['update:value', 'cursor-change'],
   setup(
@@ -72,6 +75,7 @@ export const PretextEditor = defineComponent({
       renderSearchBar?: (state: SearchState, actions: SearchActions) => any
       theme: string
       wordWrap: boolean
+      keymap?: Partial<Record<CommandId, KeyBinding>>
     },
     { emit, expose }: SetupContext<{ 'update:value': (value: string) => void; 'cursor-change': (cursor: { line: number; col: number }) => void }>,
   ) {
@@ -153,6 +157,7 @@ export const PretextEditor = defineComponent({
         workerUrl: WORKER_URL,
         theme: props.theme,
         wordWrap: props.wordWrap,
+        keymap: props.keymap,
       })
       ctrl.mount(containerRef.value!, canvasRef.value!, textareaRef.value!, onStateChange, contentRef.value!)
       window.addEventListener('pointerdown', onWindowPointerDown, { capture: true })
@@ -165,7 +170,7 @@ export const PretextEditor = defineComponent({
     })
 
     watch(() => props.value, (v: string) => ctrl?.setValue(v))
-    watch([() => props.language, () => props.fontSize, () => props.fontFamily, () => props.tabSize, () => props.theme, () => props.wordWrap], () => {
+    watch([() => props.language, () => props.fontSize, () => props.fontFamily, () => props.tabSize, () => props.theme, () => props.wordWrap, () => props.keymap], () => {
       ctrl?.updateOptions({
         language: props.language,
         fontSize: props.fontSize,
@@ -173,6 +178,7 @@ export const PretextEditor = defineComponent({
         tabSize: props.tabSize,
         theme: props.theme,
         wordWrap: props.wordWrap,
+        keymap: props.keymap,
       })
     })
 

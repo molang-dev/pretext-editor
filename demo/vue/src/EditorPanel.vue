@@ -39,6 +39,7 @@
         :tab-size="tabSize"
         :theme="theme"
         :word-wrap="wordWrap"
+        :keymap="{ copy: ['alt', 'c'] }"
       />
     </div>
 
