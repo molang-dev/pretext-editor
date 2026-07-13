@@ -148,7 +148,7 @@ export default function App() {
           onClick={() => setWordWrap(w => !w)}
           style={{ background: wordWrap ? '#1177bb' : '#0e639c', color: '#fff', border: 'none', outline: wordWrap ? '1px solid #4fc3f7' : 'none', borderRadius: 4, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}
         >
-          换行
+          Wrap
         </button>
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={onFileChange} />
       </div>
@@ -173,7 +173,7 @@ export default function App() {
         padding: '2px 16px', background: '#007acc', color: '#fff',
         fontSize: 12, flexShrink: 0, userSelect: 'none',
       }}>
-        <span>行 {cursor.line + 1}, 列 {cursor.col + 1}</span>
+        <span>Ln {cursor.line + 1}, Col {cursor.col + 1}</span>
         <span>Tab Size: {tabSize}</span>
         <span>UTF-8</span>
         <span>{LANGUAGES.find(l => l.value === language)?.label ?? language}</span>

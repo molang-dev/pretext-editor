@@ -1347,10 +1347,10 @@ export class EditorController {
   private buildMenuItems(): void {
     const hasSel = this.selAnchor !== null && !isCollapsed({ anchor: this.selAnchor, head: this.doc.cursor })
     const builtins: ContextMenuBuiltins = {
-      copy:      { label: '复制', onClick: () => this.executeCopy(),      disabled: !hasSel },
-      cut:       { label: '剪切', onClick: () => this.executeCut(),       disabled: !hasSel },
-      paste:     { label: '粘贴', onClick: () => this.executePaste(),     disabled: false },
-      selectAll: { label: '全选', onClick: () => this.executeSelectAll(), disabled: false },
+      copy:      { label: 'Copy',       onClick: () => this.executeCopy(),      disabled: !hasSel },
+      cut:       { label: 'Cut',        onClick: () => this.executeCut(),       disabled: !hasSel },
+      paste:     { label: 'Paste',      onClick: () => this.executePaste(),     disabled: false },
+      selectAll: { label: 'Select All', onClick: () => this.executeSelectAll(), disabled: false },
     }
     this.menuItems = this.contextMenuItemsFn
       ? this.contextMenuItemsFn(builtins)

@@ -25,7 +25,7 @@
       </label>
 
       <button class="btn" @click="openFile">Open File</button>
-      <button class="btn" :class="{ 'btn--active': wordWrap }" @click="wordWrap = !wordWrap">换行</button>
+      <button class="btn" :class="{ 'btn--active': wordWrap }" @click="wordWrap = !wordWrap">Wrap</button>
       <input ref="fileInputRef" type="file" class="file-input-hidden" @change="onFileChange" />
     </div>
 
@@ -44,7 +44,7 @@
     </div>
 
     <div class="statusbar">
-      <span>行 {{ cursor.line + 1 }}, 列 {{ cursor.col + 1 }}</span>
+      <span>Ln {{ cursor.line + 1 }}, Col {{ cursor.col + 1 }}</span>
       <span>Tab Size: {{ tabSize }}</span>
       <span>UTF-8</span>
       <span>{{ LANGUAGES.find(l => l.value === language)?.label ?? language }}</span>

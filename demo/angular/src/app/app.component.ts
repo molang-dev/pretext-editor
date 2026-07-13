@@ -112,7 +112,7 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
         </label>
 
         <button class="btn" (click)="openFile()">Open File</button>
-        <button class="btn" [class.btn--active]="wordWrap" (click)="toggleWordWrap()">换行</button>
+        <button class="btn" [class.btn--active]="wordWrap" (click)="toggleWordWrap()">Wrap</button>
         <input #fileInput type="file" class="file-input-hidden" (change)="onFileChange($event)" />
       </div>
 
@@ -204,7 +204,7 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
       </div>
 
       <div class="statusbar">
-        <span>行 {{ cursor.line + 1 }}, 列 {{ cursor.col + 1 }}</span>
+        <span>Ln {{ cursor.line + 1 }}, Col {{ cursor.col + 1 }}</span>
         <span>Tab Size: {{ tabSize }}</span>
         <span>UTF-8</span>
         <span>{{ currentLanguageLabel() }}</span>

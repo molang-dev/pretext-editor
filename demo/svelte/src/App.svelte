@@ -136,7 +136,7 @@ for (let i = 0; i < 10; i++) {
     </label>
 
     <button class="btn" on:click={openFile}>Open File</button>
-    <button class="btn" class:btn--active={wordWrap} on:click={() => wordWrap = !wordWrap}>换行</button>
+    <button class="btn" class:btn--active={wordWrap} on:click={() => wordWrap = !wordWrap}>Wrap</button>
     <input bind:this={fileInput} type="file" class="file-input-hidden" on:change={onFileChange} />
   </div>
 
@@ -155,7 +155,7 @@ for (let i = 0; i < 10; i++) {
   </div>
 
   <div class="statusbar">
-    <span>行 {cursor.line + 1}, 列 {cursor.col + 1}</span>
+    <span>Ln {cursor.line + 1}, Col {cursor.col + 1}</span>
     <span>Tab Size: {tabSize}</span>
     <span>UTF-8</span>
     <span>{currentLabel}</span>
