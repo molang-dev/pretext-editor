@@ -18,7 +18,8 @@ export class WorkerTokenizer {
         this.worker.onmessage = (e: MessageEvent) => this.onMessage(e.data)
         return
       }
-      const url = workerOrUrl ?? new URL('./highlight.worker.js', import.meta.url)
+      const workerSrc = './highlight.worker.js'
+      const url = workerOrUrl ?? new URL(workerSrc, import.meta.url)
       this.worker = new Worker(url, { type: 'module' })
       this.worker.onmessage = (e: MessageEvent) => this.onMessage(e.data)
     } catch {
