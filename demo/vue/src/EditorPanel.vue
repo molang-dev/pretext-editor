@@ -1,6 +1,8 @@
 <template>
   <div class="panel">
     <div class="toolbar">
+      <button class="btn btn--openfile" @click="openFile">Open File</button>
+
       <label class="ctrl-label">
         Language:
         <select v-model="language" class="ctrl-select">
@@ -19,13 +21,14 @@
 
       <label class="ctrl-label">
         Font size:
-        <select v-model.number="fontSize" class="ctrl-select ctrl-select--narrow">
-          <option v-for="n in fontSizeOptions" :key="n" :value="n">{{ n }}</option>
-        </select>
+        <input type="number" v-model.number="fontSize" min="8" max="40" class="ctrl-select ctrl-select--narrow" />
       </label>
 
-      <button class="btn" @click="openFile">Open File</button>
-      <button class="btn" :class="{ 'btn--active': wordWrap }" @click="wordWrap = !wordWrap">Wrap</button>
+      <label class="ctrl-label ctrl-label--checkbox">
+        <input type="checkbox" v-model="wordWrap" />
+        Word Wrap
+      </label>
+
       <input ref="fileInputRef" type="file" class="file-input-hidden" @change="onFileChange" />
     </div>
 
@@ -53,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { PretextEditor } from 'pretext-editor/vue'
 
 const props = defineProps<{
@@ -148,12 +151,6 @@ const wordWrap = ref(false)
 const cursor = ref({ line: 0, col: 0 })
 const fileInputRef = ref<HTMLInputElement>()
 
-const fontSizeOptions = computed(() => {
-  const opts = []
-  for (let n = 5; n <= 40; n += 2) opts.push(n)
-  return opts
-})
-
 function openFile() {
   fileInputRef.value?.click()
 }
@@ -179,6 +176,8 @@ function onFileChange(e: Event) {
   border-bottom: 1px solid #333; font-size: 13px; flex-shrink: 0;
 }
 .ctrl-label { display: flex; align-items: center; gap: 6px; color: #ccc; }
+.ctrl-label--checkbox { cursor: pointer; }
+.btn--openfile { margin-left: auto; }
 .ctrl-select {
   background: #3c3c3c; color: #ccc; border: 1px solid #555;
   border-radius: 4px; padding: 4px 8px; font-size: 13px;

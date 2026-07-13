@@ -71,9 +71,6 @@ for (let i = 0; i < 10; i++) {
 }
 `
 
-const FONT_SIZE_OPTIONS: number[] = []
-for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
-
 @Component({
   standalone: true,
   selector: 'app-root',
@@ -83,6 +80,8 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
       <div class="toolbar">
         <b class="brand">pretext-editor</b>
         <span class="tag">Angular Demo</span>
+
+        <button class="btn btn--openfile" (click)="openFile()">Open File</button>
 
         <label class="ctrl-label">
           Language:
@@ -104,15 +103,14 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
 
         <label class="ctrl-label">
           Font size:
-          <select (change)="onFontSizeChange($event)" class="ctrl-select ctrl-select--narrow" [value]="fontSize">
-            @for (n of fontSizeOptions; track n) {
-              <option [value]="n">{{ n }}</option>
-            }
-          </select>
+          <input type="number" [value]="fontSize" min="8" max="40" (change)="onFontSizeChange($event)" class="ctrl-select ctrl-select--narrow" />
         </label>
 
-        <button class="btn" (click)="openFile()">Open File</button>
-        <button class="btn" [class.btn--active]="wordWrap" (click)="toggleWordWrap()">Wrap</button>
+        <label class="ctrl-label" style="cursor: pointer">
+          <input type="checkbox" [checked]="wordWrap" (change)="toggleWordWrap()" />
+          Word Wrap
+        </label>
+
         <input #fileInput type="file" class="file-input-hidden" (change)="onFileChange($event)" />
       </div>
 
@@ -221,7 +219,7 @@ for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
     .brand { color: #0098ff; }
     .tag { color: #888; }
     .ctrl-label { display: flex; align-items: center; gap: 6px; color: #ccc; }
-    .ctrl-label:first-of-type { margin-left: auto; }
+    .btn--openfile { margin-left: auto; }
     .ctrl-select {
       background: #3c3c3c; color: #ccc; border: 1px solid #555;
       border-radius: 4px; padding: 4px 8px; font-size: 13px;
@@ -251,7 +249,6 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   cursor = { line: 0, col: 0 }
 
   languages = LANGUAGES
-  fontSizeOptions = FONT_SIZE_OPTIONS
 
   @ViewChild('container') containerRef!: ElementRef<HTMLDivElement>
   @ViewChild('content') contentRef!: ElementRef<HTMLDivElement>

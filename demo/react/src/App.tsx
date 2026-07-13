@@ -71,9 +71,6 @@ for (let i = 0; i < 10; i++) {
 }
 `
 
-const FONT_SIZE_OPTIONS: number[] = []
-for (let n = 5; n <= 40; n += 2) FONT_SIZE_OPTIONS.push(n)
-
 export default function App() {
   const [code, setCode] = useState(SAMPLE_CODE)
   const [language, setLanguage] = useState('typescript')
@@ -118,7 +115,11 @@ export default function App() {
         <b style={{ color: '#0098ff' }}>pretext-editor</b>
         <span style={{ color: '#888' }}>React Demo</span>
 
-        <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, color: '#ccc' }}>
+        <button onClick={openFile} style={{ marginLeft: 'auto', background: '#0e639c', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}>
+          Open File
+        </button>
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ccc' }}>
           Language:
           <select value={language} onChange={e => setLanguage(e.target.value)} style={sel}>
             {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
@@ -136,20 +137,18 @@ export default function App() {
 
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ccc' }}>
           Font size:
-          <select value={fontSize} onChange={e => setFontSize(Number(e.target.value))} style={{ ...sel, width: 64 }}>
-            {FONT_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
+          <input
+            type="number" value={fontSize} min={8} max={40}
+            onChange={e => setFontSize(Math.max(8, Math.min(40, Number(e.target.value))))}
+            style={{ ...sel, width: 52 }}
+          />
         </label>
 
-        <button onClick={openFile} style={{ background: '#0e639c', color: '#fff', border: 'none', borderRadius: 4, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}>
-          Open File
-        </button>
-        <button
-          onClick={() => setWordWrap(w => !w)}
-          style={{ background: wordWrap ? '#1177bb' : '#0e639c', color: '#fff', border: 'none', outline: wordWrap ? '1px solid #4fc3f7' : 'none', borderRadius: 4, padding: '4px 12px', fontSize: 13, cursor: 'pointer' }}
-        >
-          Wrap
-        </button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#ccc', cursor: 'pointer' }}>
+          <input type="checkbox" checked={wordWrap} onChange={e => setWordWrap(e.target.checked)} />
+          Word Wrap
+        </label>
+
         <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={onFileChange} />
       </div>
 

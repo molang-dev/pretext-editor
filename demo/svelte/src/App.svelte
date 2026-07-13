@@ -70,9 +70,6 @@ for (let i = 0; i < 10; i++) {
 }
 `;
 
-  const fontSizeOptions: number[] = [];
-  for (let n = 5; n <= 40; n += 2) fontSizeOptions.push(n);
-
   let code = SAMPLE_CODE;
   let language = 'typescript';
   let theme = 'dark-plus';
@@ -108,6 +105,8 @@ for (let i = 0; i < 10; i++) {
     <b class="brand">pretext-editor</b>
     <span class="tag">Svelte Demo</span>
 
+    <button class="btn btn--openfile" on:click={openFile}>Open File</button>
+
     <label class="ctrl-label">
       Language:
       <select bind:value={language} class="ctrl-select">
@@ -128,15 +127,14 @@ for (let i = 0; i < 10; i++) {
 
     <label class="ctrl-label">
       Font size:
-      <select bind:value={fontSize} class="ctrl-select ctrl-select--narrow">
-        {#each fontSizeOptions as n}
-          <option value={n}>{n}</option>
-        {/each}
-      </select>
+      <input type="number" bind:value={fontSize} min="8" max="40" class="ctrl-select ctrl-select--narrow" />
     </label>
 
-    <button class="btn" on:click={openFile}>Open File</button>
-    <button class="btn" class:btn--active={wordWrap} on:click={() => wordWrap = !wordWrap}>Wrap</button>
+    <label class="ctrl-label" style="cursor: pointer">
+      <input type="checkbox" bind:checked={wordWrap} />
+      Word Wrap
+    </label>
+
     <input bind:this={fileInput} type="file" class="file-input-hidden" on:change={onFileChange} />
   </div>
 
@@ -172,7 +170,7 @@ for (let i = 0; i < 10; i++) {
   .brand { color: #0098ff; }
   .tag { color: #888; }
   .ctrl-label { display: flex; align-items: center; gap: 6px; color: #ccc; }
-  .ctrl-label:first-of-type { margin-left: auto; }
+  .btn--openfile { margin-left: auto; }
   .ctrl-select {
     background: #3c3c3c; color: #ccc; border: 1px solid #555;
     border-radius: 4px; padding: 4px 8px; font-size: 13px;
