@@ -1,4 +1,5 @@
 import type { TokenizedLine } from './renderer'
+import { createWorker } from '#worker-impl'
 
 export type TokenBatchCallback = (from: number, to: number, tokenLines: TokenizedLine[]) => void
 
@@ -18,9 +19,9 @@ export class WorkerTokenizer {
         this.worker.onmessage = (e: MessageEvent) => this.onMessage(e.data)
         return
       }
-      const workerSrc = './highlight.worker.js'
-      const url = workerOrUrl ?? new URL(workerSrc, import.meta.url)
-      this.worker = new Worker(url, { type: 'module' })
+      this.worker = workerOrUrl
+        ? new Worker(workerOrUrl, { type: 'module' })
+        : createWorker()
       this.worker.onmessage = (e: MessageEvent) => this.onMessage(e.data)
     } catch {
       // Worker not available (e.g., Node.js CJS context)

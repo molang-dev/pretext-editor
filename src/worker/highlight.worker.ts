@@ -2,6 +2,7 @@ import { log } from '@molang/alogjs'
 import { loadWASM, createOnigScanner, createOnigString } from 'vscode-oniguruma'
 
 declare const __DEV__: boolean
+declare const __WASM_BASE64__: string | undefined
 import { Registry, INITIAL, type IRawGrammar, type StateStack } from 'vscode-textmate'
 import type { TokenizedLine } from '../core/renderer'
 
@@ -97,8 +98,15 @@ let currentReqId = 0
 type IGrammar = any
 
 async function initWasm(): Promise<void> {
-  const wasmUrl = new URL('./onig.wasm', import.meta.url)
-  const wasmBuf = await fetch(wasmUrl).then(r => r.arrayBuffer())
+  let wasmBuf: ArrayBuffer
+  if (typeof __WASM_BASE64__ !== 'undefined') {
+    const bin = atob(__WASM_BASE64__)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    wasmBuf = bytes.buffer
+  } else {
+    wasmBuf = await fetch(new URL('./onig.wasm', import.meta.url)).then(r => r.arrayBuffer())
+  }
   await loadWASM({ data: wasmBuf })
 
   const onigLib = Promise.resolve({ createOnigScanner, createOnigString })

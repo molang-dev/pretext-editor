@@ -12,10 +12,7 @@ import { SearchBar } from './SearchBar'
 import '../styles/editor.css'
 import { EditorController } from '../controller/EditorController'
 
-// Worker URL: '../highlight.worker.js' is correct relative to dist/react/index.js (the bundle output)
-const WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
-// Eagerly start the worker so WASM compiles in parallel with React initialization
-const eagerWorker = typeof Worker !== 'undefined' ? new Worker(WORKER_URL, { type: 'module' }) : null
+import { createEagerWorker } from '#worker-impl'
 import type { EditorControllerState } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'
 import {
@@ -23,6 +20,8 @@ import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_TAB_SIZE,
 } from '../core/renderer'
+
+const eagerWorker = createEagerWorker()
 
 export type {
   ContextMenuItem,
@@ -110,7 +109,6 @@ export const PretextEditor = forwardRef<
       active,
       contextMenuItems,
       worker: eagerWorker ?? undefined,
-      workerUrl: WORKER_URL,
       theme,
       wordWrap,
     })

@@ -4,6 +4,16 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.7] — 2026-07-15
+
+### Added
+- **`pretextEditorBundlePlugin()` (Vite)** — a new Vite plugin for Electron / electron-vite projects. It provides a fully self-contained worker (`highlight.worker.bundle.js`) with all grammar files and the Oniguruma WASM inlined, loaded via a blob URL so no file-path resolution is needed. Add it to your renderer's Vite config in place of `pretextEditorPlugin()` to eliminate worker MIME-type errors without any other configuration.
+
+### Fixed
+- **`pretextEditorPlugin()` production build** — the highlight worker is now bundled as ESM (instead of IIFE) in Vite production builds, allowing grammar files to be loaded as code-split chunks. Previously, `vite build` would fail with an "IIFE output format not supported for code-splitting builds" error.
+
+---
+
 ## [0.6.6] — 2026-07-14
 
 ### Fixed

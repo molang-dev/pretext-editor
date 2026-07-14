@@ -1,6 +1,44 @@
 import { defineConfig } from 'tsup'
 import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync } from 'fs'
 
+// Thin glue module: creates a Worker from the chunked highlight.worker.js via import.meta.url
+const workerSplitConfig = defineConfig({
+  entry: { 'worker-split': 'src/core/worker-split.ts' },
+  format: ['esm'],
+  dts: false,
+  splitting: false,
+  clean: false,
+})
+
+// Chunked worker: grammar files are separate chunks loaded lazily on demand
+const workerConfig = defineConfig({
+  define: {
+    __DEV__: String(process.env.NODE_ENV === 'development'),
+  },
+  entry: { 'highlight.worker': 'src/worker/highlight.worker.ts' },
+  format: ['esm'],
+  dts: false,
+  splitting: true,
+  clean: false,
+  noExternal: ['vscode-textmate', 'vscode-oniguruma'],
+})
+
+// Bundled worker: all grammars inlined + WASM base64-embedded, fully self-contained (for blob URL)
+const workerBundleConfig = defineConfig({
+  define: {
+    __DEV__: 'false',
+    __WASM_BASE64__: JSON.stringify(
+      readFileSync('node_modules/vscode-oniguruma/release/onig.wasm').toString('base64'),
+    ),
+  },
+  entry: { 'highlight.worker.bundle': 'src/worker/highlight.worker.ts' },
+  format: ['esm'],
+  dts: false,
+  splitting: false,
+  clean: false,
+  noExternal: ['vscode-textmate', 'vscode-oniguruma'],
+})
+
 const mainConfig = defineConfig({
   define: {
     __DEV__: String(process.env.NODE_ENV === 'development'),
@@ -26,6 +64,7 @@ const mainConfig = defineConfig({
     '@chenglou/pretext',
     'vscode-textmate',
     'vscode-oniguruma',
+    '#worker-impl',
   ],
 
   onSuccess: async () => {
@@ -57,19 +96,6 @@ const mainConfig = defineConfig({
   },
 })
 
-// Worker bundle: core logic inline, grammar files as separate chunks (lazy-loaded on demand)
-const workerConfig = defineConfig({
-  define: {
-    __DEV__: String(process.env.NODE_ENV === 'development'),
-  },
-  entry: { 'highlight.worker': 'src/worker/highlight.worker.ts' },
-  format: ['esm'],
-  dts: false,
-  splitting: true,
-  clean: false,
-  noExternal: ['vscode-textmate', 'vscode-oniguruma'],
-})
-
 const vitePluginConfig = defineConfig({
   entry: { vite: 'src/vite.ts' },
   format: ['esm', 'cjs'],
@@ -80,4 +106,4 @@ const vitePluginConfig = defineConfig({
   clean: false,
 })
 
-export default [mainConfig, workerConfig, vitePluginConfig]
+export default [workerSplitConfig, workerConfig, workerBundleConfig, mainConfig, vitePluginConfig]
