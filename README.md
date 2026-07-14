@@ -151,21 +151,37 @@ console.log(toString(doc3))
 
 ## Vite Setup
 
-`pretext-editor` ships a built-in Vite plugin that copies grammar chunk files and `onig.wasm` to your build output. **Required for production builds; dev server works without it.**
+Two plugins are available from `pretext-editor/vite`. Use the one that matches your environment.
+
+### Standard web apps — `pretextEditorPlugin`
+
+For regular Vite projects (React, Vue, Svelte …). The plugin excludes `pretext-editor` from Vite's pre-bundling, copies grammar chunk files and `onig.wasm` to your build output, and sets the worker output format to ESM. **Required for production builds.**
 
 ```ts
 // vite.config.ts
 import { pretextEditorPlugin } from 'pretext-editor/vite'
 
 export default defineConfig({
-  plugins: [
-    // ... your other plugins
-    pretextEditorPlugin(),
-  ],
+  plugins: [pretextEditorPlugin()],
 })
 ```
 
-Without the plugin, `vite build` will produce a broken editor where syntax highlighting fails silently (grammar files and WASM return 404 at runtime).
+### Electron / electron-vite — `pretextEditorBundlePlugin`
+
+For Electron apps built with [electron-vite](https://electron-vite.org). Vite's pre-bundler rewrites `import.meta.url` inside `node_modules`, breaking the worker file path. `pretextEditorBundlePlugin` sidesteps this by serving a fully self-contained worker — all grammar files and the Oniguruma WASM are inlined — via a blob URL, so no file-path resolution is needed at runtime.
+
+```ts
+// electron.vite.config.ts
+import { pretextEditorBundlePlugin } from 'pretext-editor/vite'
+
+export default defineConfig({
+  renderer: {
+    plugins: [react(), pretextEditorBundlePlugin()],
+  },
+})
+```
+
+> **Note:** the bundled worker is ~3 MB uncompressed (~650 KB gzip). Use `pretextEditorPlugin` for web apps where load size matters.
 
 ---
 
