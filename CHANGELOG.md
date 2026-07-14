@@ -4,6 +4,13 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.6] — 2026-07-14
+
+### Fixed
+- **Electron / Vite worker MIME error** — `pretextEditorPlugin()` now adds `pretext-editor` to `optimizeDeps.exclude`, preventing Vite from pre-bundling the package. Without this, `import.meta.url` in the pre-bundled output resolved `highlight.worker.js` to the Vite cache directory (`.vite/`) rather than the package dist, causing a "non-JavaScript MIME type" error when the worker was loaded.
+
+---
+
 ## [0.6.5] — 2026-07-14
 
 ### Fixed

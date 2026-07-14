@@ -15,6 +15,8 @@ export function pretextEditorPlugin(): Plugin {
       config.server ??= {}
       config.server.fs ??= {}
       config.server.fs.allow = [...(config.server.fs.allow ?? []), pkgRoot]
+      config.optimizeDeps ??= {}
+      config.optimizeDeps.exclude = [...(config.optimizeDeps.exclude ?? []), 'pretext-editor']
     },
     configResolved(config: ResolvedConfig) {
       outAssets = resolve(config.root, config.build.outDir, config.build.assetsDir)
