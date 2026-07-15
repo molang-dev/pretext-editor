@@ -1,5 +1,5 @@
 import type { TokenizedLine } from './renderer'
-import { createWorker } from '#worker-impl'
+import { createWorker } from 'pretext-editor/worker-create'
 
 export type TokenBatchCallback = (from: number, to: number, tokenLines: TokenizedLine[]) => void
 

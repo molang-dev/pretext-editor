@@ -336,7 +336,7 @@ function updateStatus(s) {
 }
 
 textarea.addEventListener('keydown', function(e) { ctrl.onKeyDown(e) })
-ctrl.mount(container, canvas, textarea, function() { updateStatus(ctrl.getState()) })
+ctrl.mount(container, canvas, textarea, function() { updateStatus(ctrl.getState()) }, spacer)
 
 // Search input handlers
 findInput.addEventListener('keydown', function(e) {

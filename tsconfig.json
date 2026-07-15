@@ -7,7 +7,10 @@
     "strict": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "pretext-editor/worker-create": ["./src/core/worker-create.ts"]
+    }
   },
   "include": ["src/**/*"]
 }

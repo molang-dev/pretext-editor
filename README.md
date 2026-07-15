@@ -2,7 +2,7 @@
 
 A lightweight, high-performance Canvas-virtualized code editor with VS Code-style keyboard shortcuts, syntax highlighting, and multi-cursor editing.
 
-Built on `@chenglou/pretext` + `shiki`. Integrates with **React** / **Vue 3** / **Angular** / **Svelte** / **plain HTML5**.
+Built on `@chenglou/pretext` + `shiki`. Integrates with **React** / **Vue 3** / **Angular** / **Svelte**.
 
 ## Features
 
@@ -23,6 +23,19 @@ Built on `@chenglou/pretext` + `shiki`. Integrates with **React** / **Vue 3** / 
 npm install pretext-editor
 ```
 
+## Vite Setup
+
+Add one line to your Vite config (required for all Vite / electron-vite projects):
+
+```ts
+// vite.config.ts  or  electron.vite.config.ts (renderer section)
+export default defineConfig({
+  optimizeDeps: { exclude: ['pretext-editor'] },
+})
+```
+
+This prevents Vite from pre-bundling the package with esbuild, allowing the worker to be handled correctly.
+
 ## Quick Start
 
 ### React
@@ -41,7 +54,7 @@ function App() {
 }
 ```
 
-> Import from `pretext-editor/react`. The main entry `pretext-editor` exports only framework-agnostic core functions and `EditorController`.
+> Import from `pretext-editor/react`. Also add `optimizeDeps: { exclude: ['pretext-editor'] }` to your Vite config — see [Vite Setup](#vite-setup).
 
 ### Vue 3
 
@@ -60,57 +73,42 @@ const code = ref('console.log("hello")')
 </script>
 ```
 
-> Import from `pretext-editor/vue`.
+> Import from `pretext-editor/vue`. Also add `optimizeDeps: { exclude: ['pretext-editor'] }` to your Vite config — see [Vite Setup](#vite-setup).
 
 ### Angular
 
-Angular integrates directly with `EditorController`. Create the controller and mount it in `ngAfterViewInit`:
+A ready-made standalone component is provided at `dist/angular/editor.component.ts`. Copy it into your project, then create a worker and pass it via `[worker]`:
 
 ```typescript
-import { Component, ViewChild, ElementRef, AfterViewInit, NgZone, ChangeDetectorRef } from '@angular/core'
-import { EditorController, FONT_SIZE_TO_LINE_HEIGHT } from 'pretext-editor'
+import { Component } from '@angular/core'
+import { PretextEditorComponent } from './editor.component'  // copied from dist/angular/
 
 @Component({
   standalone: true,
+  imports: [PretextEditorComponent],
   template: `
-    <div #container class="editor-wrap">
-      <div [style.height.px]="totalHeight" style="position:relative">
-        <canvas #canvas style="position:sticky;top:0;display:block;width:100%"></canvas>
-      </div>
-      <textarea #textarea rows="1" style="position:absolute;opacity:0;pointer-events:none"></textarea>
-    </div>
+    <pretext-editor
+      [value]="code"
+      [worker]="worker"
+      language="typescript"
+      (valueChange)="code = $event"
+      style="height: 100vh; display: block"
+    />
   `,
-  styles: ['.editor-wrap { flex:1;position:relative;overflow:auto }'],
 })
-export class AppComponent implements AfterViewInit {
-  @ViewChild('container') containerRef!: ElementRef
-  @ViewChild('canvas') canvasRef!: ElementRef
-  @ViewChild('textarea') textareaRef!: ElementRef
-
+export class AppComponent {
   code = 'console.log("hello")'
-  totalHeight = 0
-  private ctrl!: EditorController
 
-  constructor(private cdr: ChangeDetectorRef, private ngZone: NgZone) {}
-
-  ngAfterViewInit() {
-    this.ngZone.runOutsideAngular(() => {
-      this.ctrl = new EditorController({
-        value: this.code,
-        onChange: (v) => this.ngZone.run(() => this.code = v),
-        language: 'typescript',
-      })
-      this.ctrl.mount(this.containerRef.nativeElement, this.canvasRef.nativeElement, this.textareaRef.nativeElement, () => {
-        this.totalHeight = Math.max(1, this.ctrl.getState().doc.lines.length) * FONT_SIZE_TO_LINE_HEIGHT(14) + 16
-        this.cdr.detectChanges()
-      })
-    })
-  }
-  ngOnDestroy() { this.ctrl?.destroy() }
+  readonly worker = typeof Worker !== 'undefined'
+    ? new Worker(
+        new URL('pretext-editor/dist/highlight.worker.bundle.js', import.meta.url),
+        { type: 'module' },
+      )
+    : undefined
 }
 ```
 
-> Angular has no dedicated sub-path. Import `EditorController` from `pretext-editor` and integrate it into your component. See `dist/angular/editor.component.ts` for a full reference implementation.
+> Copy `node_modules/pretext-editor/dist/angular/editor.component.ts` into your project. Angular's build pipeline compiles it directly. Create the worker once at class level so it starts compiling WASM before the editor mounts.
 
 ### Svelte
 
@@ -130,7 +128,7 @@ export class AppComponent implements AfterViewInit {
 </div>
 ```
 
-> Import from `pretext-editor/svelte`. The component dispatches a `change` event via `createEventDispatcher`. Use `bind:this` to get a handle reference.
+> Import from `pretext-editor/svelte`. Also add `optimizeDeps: { exclude: ['pretext-editor'] }` to your Vite config — see [Vite Setup](#vite-setup). The component dispatches a `change` event via `createEventDispatcher`. Use `bind:this` to get a handle reference.
 
 ### CommonJS
 
@@ -149,41 +147,6 @@ console.log(toString(doc3))
 
 > The main entry `pretext-editor` exports only core functions and `EditorController`, with zero framework dependencies. Usable directly via `require` in Node.js.
 
-## Vite Setup
-
-Two plugins are available from `pretext-editor/vite`. Use the one that matches your environment.
-
-### Standard web apps — `pretextEditorPlugin`
-
-For regular Vite projects (React, Vue, Svelte …). The plugin excludes `pretext-editor` from Vite's pre-bundling, copies grammar chunk files and `onig.wasm` to your build output, and sets the worker output format to ESM. **Required for production builds.**
-
-```ts
-// vite.config.ts
-import { pretextEditorPlugin } from 'pretext-editor/vite'
-
-export default defineConfig({
-  plugins: [pretextEditorPlugin()],
-})
-```
-
-### Electron / electron-vite — `pretextEditorBundlePlugin`
-
-For Electron apps built with [electron-vite](https://electron-vite.org). Vite's pre-bundler rewrites `import.meta.url` inside `node_modules`, breaking the worker file path. `pretextEditorBundlePlugin` sidesteps this by serving a fully self-contained worker — all grammar files and the Oniguruma WASM are inlined — via a blob URL, so no file-path resolution is needed at runtime.
-
-```ts
-// electron.vite.config.ts
-import { pretextEditorBundlePlugin } from 'pretext-editor/vite'
-
-export default defineConfig({
-  renderer: {
-    plugins: [react(), pretextEditorBundlePlugin()],
-  },
-})
-```
-
-> **Note:** the bundled worker is ~3 MB uncompressed (~650 KB gzip). Use `pretextEditorPlugin` for web apps where load size matters.
-
----
 
 ## Props
 

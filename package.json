@@ -1,6 +1,6 @@
 {
   "name": "pretext-editor",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "private": false,
   "description": "High-performance Canvas-virtualized text editor for large documents based @chenglou/pretext",
   "license": "MIT",
@@ -41,17 +41,13 @@
       "types": "./dist/svelte/index.d.ts",
       "svelte": "./dist/svelte/PretextEditor.svelte"
     },
-    "./vite": {
-      "types": "./dist/vite.d.ts",
-      "import": "./dist/vite.js",
-      "require": "./dist/vite.cjs"
-    }
+    "./worker-create": "./dist/core/worker-create.js"
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup --config tsup.worker.config.ts && tsup",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit"
   },

@@ -21,9 +21,6 @@ import {
 } from '../core/renderer'
 import type { ContextMenuItem, IEditorBinding, ContextMenuBuiltins } from '../controller/EditorController'
 
-// Eagerly start the worker at module load so WASM compiles in parallel with Angular initialization
-const _WORKER_URL = new URL('../highlight.worker.js', import.meta.url)
-const eagerWorker = typeof Worker !== 'undefined' ? new Worker(_WORKER_URL, { type: 'module' }) : null
 
 @Component({
   // eslint-disable-next-line @angular-eslint/component-selector
@@ -76,6 +73,7 @@ export class PretextEditorComponent implements AfterViewInit, OnDestroy, OnChang
   @Input() tabSize: number = DEFAULT_TAB_SIZE
   @Input() binding?: IEditorBinding
   @Input() active = false
+  @Input() worker?: Worker
   @Input() contextMenuItemsFn?: (builtins: ContextMenuBuiltins) => ContextMenuItem[]
   @Output() valueChange = new EventEmitter<string>()
 
@@ -105,7 +103,7 @@ export class PretextEditorComponent implements AfterViewInit, OnDestroy, OnChang
         binding: this.binding,
         active: this.active,
         contextMenuItems: this.contextMenuItemsFn,
-        worker: eagerWorker ?? undefined,
+        worker: this.worker,
       })
       this.ctrl.mount(
         this.containerRef.nativeElement,

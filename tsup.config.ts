@@ -1,43 +1,11 @@
 import { defineConfig } from 'tsup'
 import { readFileSync, writeFileSync, mkdirSync, cpSync, readdirSync } from 'fs'
 
-// Thin glue module: creates a Worker from the chunked highlight.worker.js via import.meta.url
-const workerSplitConfig = defineConfig({
-  entry: { 'worker-split': 'src/core/worker-split.ts' },
-  format: ['esm'],
-  dts: false,
-  splitting: false,
-  clean: false,
-})
-
-// Chunked worker: grammar files are separate chunks loaded lazily on demand
-const workerConfig = defineConfig({
-  define: {
-    __DEV__: String(process.env.NODE_ENV === 'development'),
-  },
-  entry: { 'highlight.worker': 'src/worker/highlight.worker.ts' },
-  format: ['esm'],
-  dts: false,
-  splitting: true,
-  clean: false,
-  noExternal: ['vscode-textmate', 'vscode-oniguruma'],
-})
-
-// Bundled worker: all grammars inlined + WASM base64-embedded, fully self-contained (for blob URL)
-const workerBundleConfig = defineConfig({
-  define: {
-    __DEV__: 'false',
-    __WASM_BASE64__: JSON.stringify(
-      readFileSync('node_modules/vscode-oniguruma/release/onig.wasm').toString('base64'),
-    ),
-  },
-  entry: { 'highlight.worker.bundle': 'src/worker/highlight.worker.ts' },
-  format: ['esm'],
-  dts: false,
-  splitting: false,
-  clean: false,
-  noExternal: ['vscode-textmate', 'vscode-oniguruma'],
-})
+function stripDevLogs(path: string): void {
+  const content = readFileSync(path, 'utf-8')
+  const replaced = content.replace(/if \([^)]*__DEV__[^)]*\) [^\n]+/g, '/* __DEV__ stripped */')
+  if (replaced !== content) writeFileSync(path, replaced)
+}
 
 const mainConfig = defineConfig({
   define: {
@@ -52,7 +20,7 @@ const mainConfig = defineConfig({
   format: ['esm', 'cjs'],
   dts: true,
   splitting: false,
-  clean: true,
+  clean: false,
   shims: true,
   external: [
     'react',
@@ -64,7 +32,7 @@ const mainConfig = defineConfig({
     '@chenglou/pretext',
     'vscode-textmate',
     'vscode-oniguruma',
-    '#worker-impl',
+    'pretext-editor/worker-create',
   ],
 
   onSuccess: async () => {
@@ -81,12 +49,11 @@ const mainConfig = defineConfig({
     cpSync('src/core/renderer.ts', 'dist/core/renderer.ts')
     cpSync('src/core/tokenizer.ts', 'dist/core/tokenizer.ts')
     cpSync('src/core/search.ts', 'dist/core/search.ts')
+    stripDevLogs('dist/controller/EditorController.ts')
+    stripDevLogs('dist/core/renderer.ts')
     for (const f of readdirSync('src/icons')) {
       if (f.endsWith('.svg')) cpSync(`src/icons/${f}`, `dist/icons/${f}`)
     }
-
-    // Copy WASM to dist so worker can load it via relative URL
-    cpSync('node_modules/vscode-oniguruma/release/onig.wasm', 'dist/onig.wasm')
 
     // Inject CSS import into ESM output
     for (const pkg of ['react', 'vue']) {
@@ -96,14 +63,4 @@ const mainConfig = defineConfig({
   },
 })
 
-const vitePluginConfig = defineConfig({
-  entry: { vite: 'src/vite.ts' },
-  format: ['esm', 'cjs'],
-  dts: true,
-  external: ['vite'],
-  platform: 'node',
-  shims: true,
-  clean: false,
-})
-
-export default [workerSplitConfig, workerConfig, workerBundleConfig, mainConfig, vitePluginConfig]
+export default mainConfig

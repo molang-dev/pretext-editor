@@ -275,7 +275,7 @@ export class AppComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.ngZone.runOutsideAngular(() => {
       this.hlWorker = new Worker(
-        new URL('../../node_modules/pretext-editor/dist/highlight.worker.js', import.meta.url),
+        new URL('../../node_modules/pretext-editor/dist/highlight.worker.bundle.js', import.meta.url),
         { type: 'module' }
       )
       this.ctrl = new EditorController({

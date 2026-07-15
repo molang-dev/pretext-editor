@@ -12,7 +12,7 @@ import { SearchBar } from './SearchBar'
 import '../styles/editor.css'
 import { EditorController } from '../controller/EditorController'
 
-import { createEagerWorker } from '#worker-impl'
+import { createEagerWorker } from 'pretext-editor/worker-create'
 import type { EditorControllerState } from '../controller/EditorController'
 import type { SearchState, SearchActions } from '../core/search'
 import {
