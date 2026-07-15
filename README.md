@@ -14,7 +14,6 @@ Built on `@chenglou/pretext` + `shiki`. Integrates with **React** / **Vue 3** / 
 - **Column selection** — Alt+Shift+drag
 - **Indent guides** — auto-detected indent unit with active-scope bracket highlighting
 - **Undo / redo** — 200-entry snapshot stack
-- **IME support** — composition input handled correctly
 
 ## Install
 
@@ -89,7 +88,7 @@ ref.current?.scrollToLine(42)
 
 ## Vue 3
 
-```vue
+```jsx
 <template>
   <div style="height: 100vh">
     <PretextEditor v-model:value="code" language="typescript" />
@@ -111,7 +110,7 @@ const code = ref("console.log('hello')")
 
 ## Svelte
 
-```svelte
+```jsx
 <script lang="ts">
   import PretextEditor from 'pretext-editor/svelte'
 
