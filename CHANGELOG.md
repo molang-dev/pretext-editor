@@ -4,6 +4,16 @@ All notable changes to `pretext-editor` are documented here.
 
 ---
 
+## [0.6.9] — 2026-07-15
+
+### Changed
+- **Self-contained highlight worker** — the worker is now shipped as a single `highlight.worker.bundle.js` file with all grammars and the Oniguruma WASM inlined. Angular and vanilla consumers reference this one file directly; no separate grammar assets are needed.
+
+### Fixed
+- **Svelte / raw-TypeScript consumers** — editors embedded via the Svelte wrapper now show initial content and accept input correctly. Previously, a `ReferenceError: __DEV__ is not defined` would silently break all edit operations when the raw TypeScript source was imported by a consumer's Vite bundler.
+
+---
+
 ## [0.6.7] — 2026-07-15
 
 ### Added

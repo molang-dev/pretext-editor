@@ -1,6 +1,6 @@
 {
   "name": "pretext-editor",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "private": false,
   "description": "High-performance Canvas-virtualized text editor for large documents based @chenglou/pretext",
   "license": "MIT",
