@@ -2,19 +2,18 @@
 
 A lightweight, high-performance Canvas-virtualized code editor with VS Code-style keyboard shortcuts, syntax highlighting, and multi-cursor editing.
 
-Built on `@chenglou/pretext` + `shiki`. Integrates with **React** / **Vue 3** / **Angular** / **Svelte**.
+Built on `@chenglou/pretext` + `shiki`. Integrates with **React** / **Vue 3** / **Svelte** / **Angular**.
 
 ## Features
 
 - **Canvas virtual scrolling** — fluid editing of 10,000+ line files; only visible lines are rendered
-- **Syntax highlighting** — shiki-powered, 30+ languages (`dark-plus` theme)
+- **Syntax highlighting** — shiki-powered, 30+ languages
 - **VS Code shortcuts** — navigation, editing, selection, clipboard, history
-- **Search & replace** — Ctrl+F search, Ctrl+H replace with case-sensitive / whole-word / regex toggles and progressive async search
-- **Multi-cursor editing** — Alt+Click to add cursors, Ctrl+D to select next occurrence, Ctrl+Shift+L to select all
+- **Search & replace** — Ctrl+F / Ctrl+H with case-sensitive / whole-word / regex toggles
+- **Multi-cursor editing** — Alt+Click, Ctrl+D (next occurrence), Ctrl+Shift+L (all occurrences)
 - **Column selection** — Alt+Shift+drag
 - **Indent guides** — auto-detected indent unit with active-scope bracket highlighting
 - **Undo / redo** — 200-entry snapshot stack
-- **Instant response** — hidden textarea captures input, Canvas renders output, zero DOM diff overhead
 - **IME support** — composition input handled correctly
 
 ## Install
@@ -23,65 +22,130 @@ Built on `@chenglou/pretext` + `shiki`. Integrates with **React** / **Vue 3** / 
 npm install pretext-editor
 ```
 
-## Vite Setup
+## Framework Support
 
-Add one line to your Vite config (required for all Vite / electron-vite projects):
+| Framework | Extra setup needed |
+|-----------|-------------------|
+| React | None — import and use |
+| Vue 3 | None — import and use |
+| Svelte | None — import and use |
+| Angular | Copy `editor.component.ts` + create Worker |
+| Vanilla / no framework | Use `EditorController` directly |
+
+React, Vue, and Svelte all require one line in your Vite config (see below). Angular does not use Vite.
+
+## Vite Setup (React / Vue / Svelte)
+
+Add one line to your `vite.config.ts`:
 
 ```ts
-// vite.config.ts  or  electron.vite.config.ts (renderer section)
 export default defineConfig({
   optimizeDeps: { exclude: ['pretext-editor'] },
 })
 ```
 
-This prevents Vite from pre-bundling the package with esbuild, allowing the worker to be handled correctly.
+This prevents Vite from pre-bundling the package with esbuild, which would break the syntax-highlighting worker.
 
-## Quick Start
+---
 
-### React
+## React
 
 ```tsx
-import { useState } from 'react'
 import { PretextEditor } from 'pretext-editor/react'
+import 'pretext-editor/react/index.css'
 
 function App() {
-  const [code, setCode] = useState('console.log("hello")')
   return (
     <div style={{ height: '100vh' }}>
-      <PretextEditor value={code} onChange={setCode} language="typescript" />
+      <PretextEditor value="console.log('hello')" language="typescript" />
     </div>
   )
 }
 ```
 
-> Import from `pretext-editor/react`. Also add `optimizeDeps: { exclude: ['pretext-editor'] }` to your Vite config — see [Vite Setup](#vite-setup).
+The component is **uncontrolled for typing** — you pass `value` to set initial content or to replace it externally (e.g. loading a file), but you do not need to sync state on every keystroke.
 
-### Vue 3
+To react to edits, use `onChanged`:
+
+```tsx
+<PretextEditor
+  value={code}
+  language="typescript"
+  onChanged={(r1, c1, r2, c2, oldValue, newValue) => {
+    setCode(newValue)
+  }}
+/>
+```
+
+To get a handle for scrolling:
+
+```tsx
+const ref = useRef<PretextEditorHandle>(null)
+<PretextEditor ref={ref} value={code} language="typescript" />
+ref.current?.scrollToLine(42)
+```
+
+---
+
+## Vue 3
 
 ```vue
 <template>
   <div style="height: 100vh">
-    <PretextEditor :value="code" @update:value="code = $event" language="typescript" />
+    <PretextEditor v-model:value="code" language="typescript" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import { PretextEditor } from 'pretext-editor/vue'
+import 'pretext-editor/vue/index.css'
 
-const code = ref('console.log("hello")')
+const code = ref("console.log('hello')")
 </script>
 ```
 
-> Import from `pretext-editor/vue`. Also add `optimizeDeps: { exclude: ['pretext-editor'] }` to your Vite config — see [Vite Setup](#vite-setup).
+`v-model:value` is shorthand for `:value="code" @update:value="code = $event"`. The component also emits `@cursor-change`.
 
-### Angular
+---
 
-A ready-made standalone component is provided at `dist/angular/editor.component.ts`. Copy it into your project, then create a worker and pass it via `[worker]`:
+## Svelte
+
+```svelte
+<script lang="ts">
+  import PretextEditor from 'pretext-editor/svelte'
+
+  let code = "console.log('hello')"
+
+  function handleChange(e: CustomEvent<string>) {
+    code = e.detail
+  }
+</script>
+
+<div style="height: 100vh">
+  <PretextEditor value={code} language="typescript" on:change={handleChange} />
+</div>
+```
+
+The component dispatches a `change` CustomEvent with the new string value. Use `bind:this` to get a handle reference.
+
+---
+
+## Angular
+
+Angular requires two extra steps: copy the component into your project, and create the highlight worker yourself.
+
+**Step 1** — Copy the component file:
+
+```bash
+cp node_modules/pretext-editor/dist/angular/editor.component.ts src/app/pretext-editor/editor.component.ts
+```
+
+**Step 2** — Use it in your component, passing a Worker via `[worker]`:
 
 ```typescript
 import { Component } from '@angular/core'
-import { PretextEditorComponent } from './editor.component'  // copied from dist/angular/
+import { PretextEditorComponent } from './pretext-editor/editor.component'
 
 @Component({
   standalone: true,
@@ -97,164 +161,119 @@ import { PretextEditorComponent } from './editor.component'  // copied from dist
   `,
 })
 export class AppComponent {
-  code = 'console.log("hello")'
+  code = "console.log('hello')"
 
   readonly worker = typeof Worker !== 'undefined'
     ? new Worker(
-        new URL('pretext-editor/dist/highlight.worker.bundle.js', import.meta.url),
+        new URL(
+          // Adjust the relative path to match your component file's location
+          '../../node_modules/pretext-editor/dist/highlight.worker.bundle.js',
+          import.meta.url,
+        ),
         { type: 'module' },
       )
     : undefined
 }
 ```
 
-> Copy `node_modules/pretext-editor/dist/angular/editor.component.ts` into your project. Angular's build pipeline compiles it directly. Create the worker once at class level so it starts compiling WASM before the editor mounts.
+Create the Worker at class level (not inside a lifecycle hook) so WASM loading starts before the editor mounts.
 
-### Svelte
+---
 
-```svelte
-<script lang="ts">
-  import PretextEditor from 'pretext-editor/svelte'
+## Vanilla / No Framework
 
-  let code = $state('console.log("hello")')
-
-  function handleChange(e: CustomEvent<string>) {
-    code = e.detail
-  }
-</script>
-
-<div style="height: 100vh">
-  <PretextEditor value={code} language="typescript" on:change={handleChange} />
-</div>
-```
-
-> Import from `pretext-editor/svelte`. Also add `optimizeDeps: { exclude: ['pretext-editor'] }` to your Vite config — see [Vite Setup](#vite-setup). The component dispatches a `change` event via `createEventDispatcher`. Use `bind:this` to get a handle reference.
-
-### CommonJS
+Use `EditorController` directly:
 
 ```javascript
-const {
-  fromString, toString, insert, deleteBackward, moveCursor,
-  toggleLineComment, findAllOccurrences, extToLang,
-} = require('pretext-editor')
+import { EditorController } from 'pretext-editor'
+import { createWorker } from 'pretext-editor/worker-create'
 
-// Pure Node.js — create, edit, search, toggle comments, no browser needed
-const doc = fromString('function hello() {\n  console.log("hi")\n}')
-const doc2 = insert(doc, '// comment\n')
-const doc3 = moveCursor(doc2, 1, 0)
-console.log(toString(doc3))
+const container = document.querySelector('.editor-scroll')
+const canvas    = document.querySelector('.editor-canvas')
+const textarea  = document.querySelector('.editor-textarea')
+const content   = document.querySelector('.editor-content')
+
+const ctrl = new EditorController({
+  value: "console.log('hello')",
+  language: 'typescript',
+  worker: createWorker(),
+})
+
+ctrl.mount(container, canvas, textarea, () => {
+  // called on every state change — update your own UI here
+  const state = ctrl.getState()
+}, content)
 ```
 
-> The main entry `pretext-editor` exports only core functions and `EditorController`, with zero framework dependencies. Usable directly via `require` in Node.js.
+You are responsible for the DOM structure (`.editor-scroll`, `.editor-canvas`, `.editor-textarea`, `.editor-content`) and CSS. See `demo/vanilla/` for a full example.
 
+---
 
 ## Props
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `value` | `string` | Required | Editor content |
-| `onChange` / `@update:value` / `valueChange` / `on:change` | `(v: string) => void` | Required | Content change callback |
-| `language` | `string` | — | Shiki language ID (`typescript`, `python`, `json`, …) |
-| `fontSize` | `number` | `14` | Font size in px |
-| `fontFamily` | `string` | `Menlo, Monaco, ...` | CSS monospace font |
-| `tabSize` | `number` | `4` | Tab width in spaces |
-| `binding` | `IEditorBinding` | — | Bidirectional scroll binding (for split-pane preview) |
-| `active` | `boolean` | `false` | Whether this is the active panel |
-| `contextMenuItems` | `(builtins) => ContextMenuItem[]` | — | Custom right-click context menu |
-| `renderSearchBar` | `(state: SearchState, actions: SearchActions) => ReactNode` | — | Custom search bar (React / Vue) |
+| Prop | React | Vue | Svelte | Angular | Type | Default |
+|------|-------|-----|--------|---------|------|---------|
+| `value` | ✓ | ✓ | ✓ | ✓ | `string` | required |
+| `language` | ✓ | ✓ | ✓ | ✓ | `string` | — |
+| `theme` | ✓ | ✓ | ✓ | ✓ | `string` | `'dark-plus'` |
+| `fontSize` | ✓ | ✓ | ✓ | ✓ | `number` | `14` |
+| `fontFamily` | ✓ | ✓ | ✓ | ✓ | `string` | `Menlo, Monaco, …` |
+| `tabSize` | ✓ | ✓ | ✓ | ✓ | `number` | `4` |
+| `wordWrap` | ✓ | ✓ | ✓ | ✓ | `boolean` | `false` |
+| `worker` | — | — | — | ✓ | `Worker` | — |
+| `binding` | ✓ | ✓ | ✓ | — | `IEditorBinding` | — |
+| `active` | ✓ | ✓ | ✓ | — | `boolean` | `false` |
+| `contextMenuItems` | ✓ | ✓ | ✓ | — | `(builtins) => ContextMenuItem[]` | — |
+| `renderSearchBar` | ✓ | ✓ | — | — | `(state, actions) => ReactNode` | — |
 
-## Search
+**Change callbacks:**
 
-Press `Ctrl/Cmd+F` to open the search bar, `Ctrl/Cmd+H` to open with replace. `Escape` to close. `Enter` for next match, `Shift+Enter` for previous. React, Vue, and Svelte all ship a built-in search bar.
+| Framework | Callback |
+|-----------|----------|
+| React | `onChanged?: (r1, c1, r2, c2, oldValue, newValue) => void` |
+| Vue | `@update:value="handler"` (or `v-model:value`) |
+| Svelte | `on:change` — `CustomEvent<string>` |
+| Angular | `(valueChange)="handler($event)"` |
 
-### Default UI
+## Themes
 
-All framework components (React / Vue / Svelte) include a built-in search bar that floats top-right and does not scroll with content:
+Built-in values for `theme`: `'dark-plus'` · `'dracula'` · `'github-light'`
+
+## Handle Methods
 
 ```tsx
-<PretextEditor value={code} onChange={setCode} />
+// React
+const ref = useRef<PretextEditorHandle>(null)
+ref.current?.scrollToLine(42)
+
+// Vue
+const editorRef = ref<PretextEditorHandle>()
+
+// Svelte
+let editorRef: PretextEditorHandle
+<PretextEditor bind:this={editorRef} ... />
 ```
 
-### Custom UI
+| Method | Description |
+|--------|-------------|
+| `getTopLine()` | First visible line number (0-based) |
+| `scrollToLine(line)` | Scroll to a specific line |
+| `getVisibleLines()` | `{ from, to }` visible line range |
 
-Replace the default search bar via the `renderSearchBar` prop:
+## Custom Search Bar (React / Vue)
 
 ```tsx
 import type { SearchState, SearchActions } from 'pretext-editor/react'
 
 <PretextEditor
   value={code}
-  onChange={setCode}
   renderSearchBar={(state: SearchState, actions: SearchActions) => (
     <MySearchBar state={state} actions={actions} />
   )}
 />
 ```
 
-`SearchState` fields:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `isOpen` | `boolean` | Whether the search bar is open |
-| `query` | `string` | Current search query |
-| `caseSensitive` | `boolean` | Case-sensitive flag |
-| `wholeWord` | `boolean` | Whole-word match flag |
-| `useRegex` | `boolean` | Regular expression flag |
-| `matchCount` | `number` | Total match count |
-| `currentIndex` | `number` | Index of the currently highlighted match (0-based, -1 = no match) |
-| `showReplace` | `boolean` | Whether the replace row is visible |
-| `replaceQuery` | `string` | Replacement text |
-| `preserveCase` | `boolean` | Preserve case when replacing |
-| `regexError` | `string \| null` | Regex error message, or null |
-| `focusToken` | `number` | Incremented on each `openSearch()` call; used by components to detect re-focus |
-
-`SearchActions` methods: `setQuery(q)` · `next()` · `prev()` · `close()` · `setCaseSensitive(v)` · `setWholeWord(v)` · `setUseRegex(v)` · `toggleReplace()` · `setReplaceQuery(q)` · `setPreserveCase(v)` · `replace()` · `replaceAll()`
-
-### Framework-agnostic API
-
-```ts
-import { EditorController } from 'pretext-editor'
-
-ctrl.openSearch()            // open (optionally pass initial query)
-ctrl.setSearchQuery('foo')   // update query
-ctrl.searchNext()            // next match
-ctrl.searchPrev()            // previous match
-ctrl.closeSearch()           // close
-ctrl.setSearchCaseSensitive(true)
-
-// search state is in ctrl.getState().searchState
-```
-
----
-
-## Handle Methods
-
-```tsx
-const ref = useRef<PretextEditorHandle>(null)
-ref.current?.scrollToLine(42)
-```
-
-| Method | Description |
-|--------|-------------|
-| `getTopLine()` | First visible line number |
-| `scrollToLine(line)` | Scroll to a specific line |
-| `getVisibleLines()` | Visible line range `{ from, to }` |
-
-## Core Functions (Framework-Agnostic)
-
-```javascript
-import {
-  fromString, toString,            // Doc ↔ string
-  insert,                          // insert text
-  deleteBackward, deleteForward,   // delete
-  moveCursor, moveWordLeft, moveWordRight,
-  moveToLineStart, moveToLineEnd,
-  moveLines, copyLines,            // Alt+↑↓ move/copy lines
-  toggleLineComment,               // Ctrl+/
-  findNextOccurrence, findAllOccurrences,
-  extToLang,                       // extension → language ID
-} from 'pretext-editor'
-```
+`SearchActions` methods: `setQuery` · `next` · `prev` · `close` · `setCaseSensitive` · `setWholeWord` · `setUseRegex` · `toggleReplace` · `setReplaceQuery` · `setPreserveCase` · `replace` · `replaceAll`
 
 ## Keyboard Shortcuts
 
@@ -264,43 +283,33 @@ import {
 | Ctrl+← → | Move by word |
 | Home / End | Line start / end |
 | Ctrl+Home / End | File start / end |
-| PageUp / Down | Scroll page |
 | Shift+arrows | Extend selection |
 | Ctrl+A | Select all |
 | Ctrl+L | Select current line |
-| Ctrl+D | Select next occurrence (multi-cursor) |
+| Ctrl+D | Select next occurrence |
 | Ctrl+Shift+L | Select all occurrences |
-| Alt+Click | Add / remove extra cursor |
+| Alt+Click | Add / remove cursor |
 | Alt+Shift+drag | Column selection |
-| Enter | New line |
-| Backspace / Delete | Delete character |
 | Ctrl+Backspace / Delete | Delete by word |
 | Tab / Shift+Tab | Indent / dedent |
-| Alt+↑ ↓ | Move current line |
-| Alt+Shift+↑ ↓ | Copy current line |
+| Alt+↑ ↓ | Move line up / down |
+| Alt+Shift+↑ ↓ | Copy line up / down |
 | Ctrl+Enter | Insert line below |
 | Ctrl+Shift+Enter | Insert line above |
 | Ctrl+/ | Toggle line comment |
 | Ctrl+Shift+K | Delete line |
-| Ctrl+C / X / V | Copy / cut / paste |
 | Ctrl+Z / Ctrl+Y | Undo / redo |
-| Ctrl+F | Open search bar |
+| Ctrl+F | Open search |
 | Ctrl+H | Open search with replace |
-| Enter | Next match (when search bar is focused) |
-| Shift+Enter | Previous match |
-| Alt+C | Toggle case-sensitive (when search bar is focused) |
-| Alt+W | Toggle whole-word |
-| Alt+R | Toggle regex |
-| Escape | Close search bar / cancel multi-cursor |
 
 ## Supported Languages
 
-`typescript` · `tsx` · `javascript` · `jsx` · `python` · `rust` · `go` · `c` · `cpp` · `csharp` · `java` · `kotlin` · `swift` · `ruby` · `php` · `css` · `scss` · `html` · `vue` · `svelte` · `json` · `yaml` · `toml` · `markdown` · `bash` · `sql` · `graphql`
+`typescript` · `tsx` · `javascript` · `jsx` · `python` · `rust` · `go` · `c` · `cpp` · `csharp` · `java` · `kotlin` · `swift` · `ruby` · `php` · `css` · `scss` · `less` · `html` · `vue` · `svelte` · `json` · `jsonc` · `yaml` · `toml` · `markdown` · `bash` · `sql` · `graphql` · `lua` · `dart` · `scala` · `r` · `haml` · `glsl`
 
-```tsx
+```ts
 import { extToLang } from 'pretext-editor'
-extToLang('ts')   // → "typescript"
-extToLang('py')   // → "python"
+extToLang('ts')  // → 'typescript'
+extToLang('py')  // → 'python'
 ```
 
 ## Demos
@@ -308,14 +317,10 @@ extToLang('py')   // → "python"
 ```bash
 cd demo/react    && npm install && npm run dev   # React + Vite
 cd demo/vue      && npm install && npm run dev   # Vue 3 + Vite
-cd demo/angular  && npm install && npm run dev   # Angular standalone
 cd demo/svelte   && npm install && npm run dev   # Svelte + Vite
-cd demo/vanilla  && npm install && npm run dev   # Plain HTML5, zero framework
+cd demo/angular  && npm install && npm run dev   # Angular
+cd demo/vanilla  && npm install && npm run build # Vanilla — open index.html after build
 ```
-
-## Performance
-
-Only visible lines are drawn on Canvas — rendering cost is independent of file size. Large files are kept as an array of line strings, O(visible lines) rendering.
 
 ## License
 
